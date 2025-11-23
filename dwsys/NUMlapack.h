@@ -19,7 +19,171 @@
  */
 
 #include "melder.h"
-#include "clapack.h"
+
+/* Use R's LAPACK instead of CLAPACK */
+#include <R_ext/BLAS.h>
+#include <R_ext/Lapack.h>
+
+/* Type alias for Praat's CLAPACK interface (integer is already defined in melder_int.h) */
+typedef double doublereal;
+
+/* Wrapper functions to match Praat's expected LAPACK signatures */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Note: integer is intptr_t (from melder_int.h), but R's LAPACK uses int.
+   These wrappers do the conversion. */
+double dlamch_wrap_int(const char* cmach);
+int dgeev_wrap_int(const char* jobvl, const char* jobvr, int* n, double* a, int* lda,
+                   double* wr, double* wi, double* vl, int* ldvl,
+                   double* vr, int* ldvr, double* work, int* lwork, int* info);
+int dgesvd_wrap_int(const char* jobu, const char* jobvt, int* m, int* n, double* a,
+                    int* lda, double* s, double* u, int* ldu,
+                    double* vt, int* ldvt, double* work, int* lwork, int* info);
+int dggsvd_wrap_int(const char* jobu, const char* jobv, const char* jobq, int* m, int* n, int* p,
+                    int* k, int* l, double* a, int* lda, double* b, int* ldb,
+                    double* alpha, double* beta, double* u, int* ldu,
+                    double* v, int* ldv, double* q, int* ldq,
+                    double* work, int* iwork, int* info);
+int dhseqr_wrap_int(const char* job, const char* compz, int* n, int* ilo, int* ihi,
+                    double* h, int* ldh, double* wr, double* wi,
+                    double* z, int* ldz, double* work, int* lwork, int* info);
+int dsyev_wrap_int(const char* jobz, const char* uplo, int* n, double* a, int* lda,
+                   double* w, double* work, int* lwork, int* info);
+int dtrtri_wrap_int(const char* uplo, const char* diag, int* n, double* a, int* lda, int* info);
+int dtrti2_wrap_int(const char* uplo, const char* diag, int* n, 
+                    double* a, int* lda, int* info);
+int dsytrf_wrap_int(const char* uplo, int* n, double* a, int* lda,
+                    int* ipiv, double* work, int* lwork, int* info);
+int dsytri_wrap_int(const char* uplo, int* n, double* a, int* lda, int* ipiv,
+                    double* work, int* info);
+int dpotf2_wrap_int(const char* uplo, int* n, double* a, int* lda, int* info);
+
+/* Inline wrappers that convert integer* to int* */
+
+static inline double dlamch_(const char* cmach) {
+    return dlamch_wrap_int(cmach);
+}
+
+static inline int dgeev_(const char* jobvl, const char* jobvr, integer* n, double* a, integer* lda,
+                        double* wr, double* wi, double* vl, integer* ldvl,
+                        double* vr, integer* ldvr, double* work, integer* lwork, integer* info) {
+    int n_int = (int)*n, lda_int = (int)*lda, ldvl_int = (int)*ldvl;
+    int ldvr_int = (int)*ldvr, lwork_int = (int)*lwork, info_int = (int)*info;
+    int result = dgeev_wrap_int(jobvl, jobvr, &n_int, a, &lda_int, wr, wi, vl, &ldvl_int,
+                                vr, &ldvr_int, work, &lwork_int, &info_int);
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dgesvd_(const char* jobu, const char* jobvt, integer* m, integer* n, double* a,
+                         integer* lda, double* s, double* u, integer* ldu,
+                         double* vt, integer* ldvt, double* work, integer* lwork, integer* info) {
+    int m_int = (int)*m, n_int = (int)*n, lda_int = (int)*lda;
+    int ldu_int = (int)*ldu, ldvt_int = (int)*ldvt, lwork_int = (int)*lwork, info_int = (int)*info;
+    int result = dgesvd_wrap_int(jobu, jobvt, &m_int, &n_int, a, &lda_int, s, u, &ldu_int,
+                                 vt, &ldvt_int, work, &lwork_int, &info_int);
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dggsvd_(const char* jobu, const char* jobv, const char* jobq, integer* m, integer* n, integer* p,
+                         integer* k, integer* l, double* a, integer* lda, double* b, integer* ldb,
+                         double* alpha, double* beta, double* u, integer* ldu,
+                         double* v, integer* ldv, double* q, integer* ldq,
+                         double* work, integer* iwork, integer* info) {
+    int m_int = (int)*m, n_int = (int)*n, p_int = (int)*p;
+    int k_int = (int)*k, l_int = (int)*l, lda_int = (int)*lda, ldb_int = (int)*ldb;
+    int ldu_int = (int)*ldu, ldv_int = (int)*ldv, ldq_int = (int)*ldq, info_int = (int)*info;
+    int iwork_int;
+    int result = dggsvd_wrap_int(jobu, jobv, jobq, &m_int, &n_int, &p_int, &k_int, &l_int,
+                                 a, &lda_int, b, &ldb_int, alpha, beta, u, &ldu_int,
+                                 v, &ldv_int, q, &ldq_int, work, &iwork_int, &info_int);
+    *k = (integer)k_int;
+    *l = (integer)l_int;
+    *iwork = (integer)iwork_int;
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dhseqr_(const char* job, const char* compz, integer* n, integer* ilo, integer* ihi,
+                         double* h, integer* ldh, double* wr, double* wi,
+                         double* z, integer* ldz, double* work, integer* lwork, integer* info) {
+    int n_int = (int)*n, ilo_int = (int)*ilo, ihi_int = (int)*ihi;
+    int ldh_int = (int)*ldh, ldz_int = (int)*ldz, lwork_int = (int)*lwork, info_int = (int)*info;
+    int result = dhseqr_wrap_int(job, compz, &n_int, &ilo_int, &ihi_int,
+                                 h, &ldh_int, wr, wi, z, &ldz_int, work, &lwork_int, &info_int);
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dsyev_(const char* jobz, const char* uplo, integer* n, double* a, integer* lda,
+                        double* w, double* work, integer* lwork, integer* info) {
+    int n_int = (int)*n, lda_int = (int)*lda, lwork_int = (int)*lwork, info_int = (int)*info;
+    int result = dsyev_wrap_int(jobz, uplo, &n_int, a, &lda_int, w, work, &lwork_int, &info_int);
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dtrtri_(const char* uplo, const char* diag, integer* n, double* a, integer* lda, integer* info) {
+    int n_int = (int)*n, lda_int = (int)*lda, info_int = (int)*info;
+    int result = dtrtri_wrap_int(uplo, diag, &n_int, a, &lda_int, &info_int);
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dtrti2_(const char* uplo, const char* diag, integer* n, 
+                          double* a, integer* lda, integer* info) {
+    int n_int = (int)*n;
+    int lda_int = (int)*lda;
+    int info_int = (int)*info;
+    int result = dtrti2_wrap_int(uplo, diag, &n_int, a, &lda_int, &info_int);
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dsytrf_(const char* uplo, integer* n, double* a, integer* lda,
+                          integer* ipiv, double* work, integer* lwork, integer* info) {
+    int n_int = (int)*n;
+    int lda_int = (int)*lda;
+    int lwork_int = (int)*lwork;
+    int info_int = (int)*info;
+    int ipiv_int[*n];
+    for (int i = 0; i < *n; ++i) ipiv_int[i] = (int)ipiv[i];
+    
+    int result = dsytrf_wrap_int(uplo, &n_int, a, &lda_int, ipiv_int, work, &lwork_int, &info_int);
+    
+    for (int i = 0; i < *n; ++i) ipiv[i] = (integer)ipiv_int[i];
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dsytri_(const char* uplo, integer* n, double* a, integer* lda, integer* ipiv,
+                          double* work, integer* info) {
+    int n_int = (int)*n, lda_int = (int)*lda, info_int = (int)*info;
+    int ipiv_int[*n];
+    for (int i = 0; i < *n; ++i) ipiv_int[i] = (int)ipiv[i];
+    
+    int result = dsytri_wrap_int(uplo, &n_int, a, &lda_int, ipiv_int, work, &info_int);
+    
+    *info = (integer)info_int;
+    return result;
+}
+
+static inline int dpotf2_(const char* uplo, integer* n, double* a, integer* lda, integer* info) {
+    int n_int = (int)*n;
+    int lda_int = (int)*lda;
+    int info_int = (int)*info;
+    int result = dpotf2_wrap_int(uplo, &n_int, a, &lda_int, &info_int);
+    *info = (integer)info_int;
+    return result;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
 #undef max
 #undef min
 
