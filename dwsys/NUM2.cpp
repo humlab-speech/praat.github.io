@@ -1908,6 +1908,12 @@ void NUMgetEllipseBoundingBox (double a, double b, double cospsi, double *out_wi
 	Closely modeled after the netlib code by Oleg Keselyov.
 */
 double NUMminimize_brent (double (*f) (double x, void *closure), double a, double b, void *closure, double tol, double *fx) {
+	// Ensure NUMfpp is initialized (needed for sqrt_epsilon calculation)
+	if (!NUMfpp) {
+		extern void NUMmachar();
+		NUMmachar();
+	}
+	
 	double x, v, fv, w, fw;
 	const double golden = 1 - NUM_goldenSection;
 	const double sqrt_epsilon = sqrt (NUMfpp -> eps);
