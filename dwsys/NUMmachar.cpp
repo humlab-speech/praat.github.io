@@ -26,6 +26,9 @@
 #include "NUMlapack.h"
 
 static struct structmachar_Table machar_table;
+// Global definition of NUMfpp (declared extern in NUMmachar.h)
+machar_Table NUMfpp = nullptr;
+
 
 /*
 Floating point properties:

@@ -39,7 +39,7 @@ struct structmachar_Table
 
 typedef struct structmachar_Table *machar_Table;
 
-inline machar_Table NUMfpp = nullptr;
+extern machar_Table NUMfpp;
 
 void NUMmachar ();
 
