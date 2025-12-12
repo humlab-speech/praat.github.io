@@ -19,7 +19,7 @@
  */
 
 #include "melder.h"
-#include "../external/num/median_of_ninthers.h"
+#include "median_of_ninthers.h"
 
 namespace num {
 	template <class T>

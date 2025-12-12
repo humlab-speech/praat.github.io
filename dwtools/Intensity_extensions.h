@@ -23,10 +23,10 @@
  djmw 20110307 Latewst modification
 */
 
-#include "Sound.h"
-#include "Intensity.h"
-#include "IntensityTier.h"
-#include "TextGrid.h"
+#include "../fon/Sound.h"
+#include "../fon/Intensity.h"
+#include "../fon/IntensityTier.h"
+#include "../fon/TextGrid.h"
 
 autoTextGrid Intensity_to_TextGrid_detectSilences (Intensity me, double silenceThreshold_dB, double minSilenceDuration,
 	double minSoundingDuration, conststring32 silenceLabel, conststring32 soundingLabel);

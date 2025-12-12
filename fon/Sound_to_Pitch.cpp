@@ -49,6 +49,8 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 	MAT const& frame, VEC const& ac, VEC const& window, VEC const& windowR,
 	double *r, INTVEC const& imax, VEC const& localMean)
 {
+#ifndef PLADDRR_NO_DEBUG
+#endif
 	integer leftSample = Sampled_xToLowIndex (me, t), rightSample = leftSample + 1;
 	integer startSample, endSample;
 
@@ -100,6 +102,8 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 		}
 	}
 	pitchFrame -> intensity = ( localPeak > globalPeak ? 1.0 : localPeak / globalPeak );
+	
+	// DEBUG POINT 1: Check local peak calculation
 
 	/*
 		Compute the correlation into the array 'r'.
@@ -154,7 +158,8 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 		}
 		NUMfft_backward (fftTable, ac);   // autocorrelation
 
-		/*
+		// DEBUG POINT 3: Check autocorrelation values after FFT
+/*
 			Normalize the autocorrelation to the value with zero lag,
 			and divide it by the normalized autocorrelation of the window.
 		*/
@@ -174,8 +179,9 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 		Shortcut: absolute silence is always voiceless.
 		We are done for this frame.
 	*/
-	if (localPeak == 0.0)
-		return;
+	if (localPeak == 0.0) {
+	return;
+	}
 
 	/*
 		Find the strongest maxima of the correlation of this frame,
@@ -186,7 +192,8 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 		if (r [i] > 0.5 * voicingThreshold &&   // not too unvoiced?
 			r [i] > r [i-1] && r [i] >= r [i+1])   // maximum?
 	{
-		integer place = 0;
+		// DEBUG POINT 4: Peak found in correlation
+integer place = 0;
 
 		/*
 			Use parabolic interpolation for first estimate of frequency,
@@ -243,14 +250,28 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 		}
 	}
 
+	// DEBUG POINT 5: Final candidate count
+// Sanity check before second pass
+
 	/*
 		Second pass: for extra precision, maximize sin(x)/x interpolation ('sinc').
 	*/
 	for (integer i = 2; i <= pitchFrame -> nCandidates; i ++) {
+#ifndef PLADDRR_NO_DEBUG
+#endif
 		if (method != AC_HANNING || pitchFrame -> candidates [i]. frequency > 0.0 / my dx) {
+#ifndef PLADDRR_NO_DEBUG
+#endif
 			double xmid, ymid;
 			const integer offset = - brent_ixmax - 1;
-			ymid = NUMimproveMaximum (constVEC (& r [offset + 1], brent_ixmax - offset), imax [i] - offset,
+	// Create the VEC separately to debug
+#ifndef PLADDRR_NO_DEBUG
+	#endif
+			double *vecStart = & r [offset + 1];
+#ifndef PLADDRR_NO_DEBUG
+	#endif
+			constVEC tmpVec = constVEC (vecStart, brent_ixmax - offset);
+	ymid = NUMimproveMaximum (tmpVec, imax [i] - offset,
 					pitchFrame -> candidates [i]. frequency > 0.3 / my dx ? NUM_PEAK_INTERPOLATE_SINC700 : brent_depth, & xmid);
 			xmid += offset;
 			pitchFrame -> candidates [i]. frequency = 1.0 / my dx / xmid;
@@ -356,7 +377,7 @@ autoPitch Sound_to_Pitch_any (Sound me,
 		*/
 		for (integer iframe = 1; iframe <= numberOfFrames; iframe ++) {
 			const Pitch_Frame pitchFrame = & thy frames [iframe];
-			Pitch_Frame_init (pitchFrame, maxnCandidates);
+	Pitch_Frame_init (pitchFrame, maxnCandidates);
 		}
 
 		/*
@@ -371,7 +392,7 @@ autoPitch Sound_to_Pitch_any (Sound me,
 					globalPeak = value;
 			}
 		}
-		if (globalPeak == 0.0)
+if (globalPeak == 0.0)
 			return thee;
 
 		autoVEC window, windowR;
@@ -434,12 +455,12 @@ autoPitch Sound_to_Pitch_any (Sound me,
 			brent_ixmax = Melder_ifloor (nsamp_window * interpolation_depth);
 		}
 
-		autoMelderProgress progress (U"Sound to Pitch...");
-		if (MelderThread_TRACING)
-			Melder_casual (U"channel frame time pitch");
+	autoMelderProgress progress (U"Sound to Pitch...");
+	if (MelderThread_TRACING)
+		Melder_casual (U"channel frame time pitch");
 
-		MelderThread_PARALLELIZE (numberOfFrames, 5)
-			autoMAT frame;
+	MelderThread_PARALLELIZE (numberOfFrames, 5)
+autoMAT frame;
 			autoNUMFourierTable fftTable;
 			autoVEC ac;
 			if (method >= FCC_NORMAL) {   // cross-correlation
@@ -449,11 +470,11 @@ autoPitch Sound_to_Pitch_any (Sound me,
 				frame = zero_MAT (my ny, nsampFFT);
 				ac = zero_VEC (nsampFFT);
 			}
-			autoVEC rbuffer = zero_VEC (2 * nsamp_window + 1);
-			double *r = & rbuffer [1 + nsamp_window];
-			autoINTVEC imax = zero_INTVEC (maxnCandidates);
-			autoVEC localMean = zero_VEC (my ny);
-		MelderThread_FOR (iframe) {
+		autoVEC rbuffer = zero_VEC (2 * nsamp_window + 1);
+		double *r = & rbuffer [1 + nsamp_window];
+		autoINTVEC imax = zero_INTVEC (maxnCandidates);
+		autoVEC localMean = zero_VEC (my ny);
+	MelderThread_FOR (iframe) {
 			Pitch_Frame pitchFrame = & thy frames [iframe];
 			const double time = Sampled_indexToX (thee.get(), iframe);
 			if (MelderThread_IS_MASTER) {   // then we can interact with the GUI
@@ -471,11 +492,11 @@ autoPitch Sound_to_Pitch_any (Sound me,
 				frame.get(), ac.get(), window.get(), windowR.get(),
 				r, imax.get(), localMean.get()
 			);
-			if (MelderThread_TRACING)
-				Melder_casual (MelderThread_CHANNEL, U" ", iframe, U" ", time, U" ", pitchFrame -> candidates [1]. frequency);
-		} MelderThread_ENDFOR
+		if (MelderThread_TRACING)
+			Melder_casual (MelderThread_CHANNEL, U" ", iframe, U" ", time, U" ", pitchFrame -> candidates [1]. frequency);
+	} MelderThread_ENDFOR
 
-		Melder_progress (0.95, U"Sound to Pitch: path finder");
+	Melder_progress (0.95, U"Sound to Pitch: path finder");
 		Pitch_pathFinder (thee.get(), silenceThreshold, voicingThreshold,
 				octaveCost, octaveJumpCost, voicedUnvoicedCost, pitchCeiling, Melder_debug == 31 ? true : false);
 

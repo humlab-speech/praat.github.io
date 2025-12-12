@@ -18,8 +18,8 @@
  * along with this work. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Sound.h"
-#include "TextGrid.h"
+#include "../fon/Sound.h"
+#include "../fon/TextGrid.h"
 
 autoIntervalTier Sound_to_IntervalTier_highMidLowIntervals (Sound me, double min, double max);
 autoTextGrid Sound_to_TextGrid_highMidLowIntervals (Sound me, double min, double max);

@@ -18,7 +18,7 @@
 
 #include "melder.h"
 #include "../dwsys/NUM2.h"
-//#include "../external/gsl/gsl_blas.h"
+//#include "gsl_blas.h"
 
 #ifdef macintosh
 	#include <Accelerate/Accelerate.h>

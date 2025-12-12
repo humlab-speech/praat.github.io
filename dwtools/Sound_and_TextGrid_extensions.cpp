@@ -19,8 +19,8 @@
 #include "Intensity_extensions.h"
 #include "Sound_extensions.h"
 #include "Sound_and_TextGrid_extensions.h"
-#include "Sound_and_Spectrum.h"
-#include "Sound_to_Intensity.h"
+#include "../fon/Sound_and_Spectrum.h"
+#include "../fon/Sound_to_Intensity.h"
 
 autoIntervalTier Sound_to_IntervalTier_highMidLowIntervals (Sound me, double min, double max) {
 	try {

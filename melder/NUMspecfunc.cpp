@@ -31,10 +31,31 @@
 #include "melder.h"
 #include "../dwsys/NUM2.h"   // NUMridders
 
-#include "../external/gsl/gsl_errno.h"
-#include "../external/gsl/gsl_sf_bessel.h"
-#include "../external/gsl/gsl_sf_gamma.h"
-#include "../external/gsl/gsl_sf_erf.h"
+// #include "gsl_errno.h"
+// #include "gsl_sf_bessel.h"
+// #include "gsl_sf_gamma.h"
+// #include "gsl_sf_erf.h"
+
+// Forward declarations for stubbed GSL functions
+extern "C" {
+	#define GSL_SUCCESS 0
+	#define GSL_EUNDRFLW 11  // underflow
+	#define GSL_EMAXITER 10  // max iterations
+	
+	struct gsl_sf_result_struct {
+		double val;
+		double err;
+	};
+	typedef struct gsl_sf_result_struct gsl_sf_result;
+	
+	int gsl_sf_lngamma_e(double x, gsl_sf_result *result);
+	int gsl_sf_beta_inc_e(double a, double b, double x, gsl_sf_result *result);
+	int gsl_sf_bessel_In_e(int n, double x, gsl_sf_result *result);
+	int gsl_sf_bessel_Kn_e(int n, double x, gsl_sf_result *result);
+	int gsl_sf_erfc_e(double x, gsl_sf_result *result);
+	int gsl_sf_gamma_inc_P_e(double a, double x, gsl_sf_result *result);
+	int gsl_sf_gamma_inc_Q_e(double a, double x, gsl_sf_result *result);
+}
 
 double NUMlnGamma (double x) {
 	gsl_sf_result result;

@@ -42,8 +42,11 @@ void MelderThread_run (
 	std::function <void (integer threadNumber, integer firstElement, integer lastElement)> const& threadFunction
 ) {
 	const integer numberOfThreads = MelderThread_computeNumberOfThreads (numberOfElements, thresholdNumberOfElementsPerThread);
+	fprintf(stderr, "MelderThread_run: numberOfThreads=%ld numberOfElements=%ld\n", (long)numberOfThreads, (long)numberOfElements); fflush(stderr);
 	if (numberOfThreads == 1) {
+		fprintf(stderr, "MelderThread_run: calling threadFunction(0, 1, %ld)\n", (long)numberOfElements); fflush(stderr);
 		threadFunction (0, 1, numberOfElements);
+		fprintf(stderr, "MelderThread_run: threadFunction returned\n"); fflush(stderr);
 	} else {
 		const integer numberOfExtraThreads = numberOfThreads - 1;   // at least 1
 		/*
