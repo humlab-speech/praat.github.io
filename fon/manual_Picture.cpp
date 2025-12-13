@@ -635,7 +635,7 @@ make sure that you have installed the Charis and/or Doulos SIL font, for instanc
 You can either type the symbols directly (if your computer has an input method for them),
 or use the backslash trigraphs in the following list.
 
-Diacritics above the letter:
+Diacritics below the letter:
 , n\|v `n\|v`  (%%combining vertical line below%): syllabic consonant
 , b\0v `b\0v`  (%%combining ring below%): voiceless (e.g. lenis voiceless plosive, voiceless nasal or approximant)
 , s\vv `s\vv`  (%%combining caron below%): voiced
@@ -656,7 +656,7 @@ Diacritics above the letter:
 , d\mv `d\mv`  (%%combining seagull below%): lingiolabial
 , a\_ub `a\_ub`  undertie (liaison, if spaces don't mean breaks in your transcription)
 
-Diacritics below the letter:
+Diacritics above the letter:
 , \gf\0^ `\gf\0^`  (%%combining ring above%): voiceless
 , \ef\'' `\ef\''`  (%%combining double acute accent%): extra high tone
 , \ef\'^ `\ef\'^`  (%%combining acute accent%): high tone
@@ -676,7 +676,7 @@ Diacritics below the letter:
 , e\x^ `e\x^`  (%%combining x above%): mid-centralized
 , \ef\N^ `\ef\N^`  (%%combining breve%): extra short
 , k\lip `k\lip`,   t\lis `t\lis`   (%%combining double inverted breve%, %ligature): simultaneous articulation, or single segment
-, m\LIb `k\lix`,   m\LIb `k\LSx`   (%%combining double breve below%, %ligature): simultaneous articulation, or single segment
+, m\LIb `m\LIb`,   k\LIx `k\LIx`   (%%combining double breve below%, %ligature): simultaneous articulation, or single segment
 
 Diacritics struck through the letter (overlays):
 , d\// `d\//`  (%%combining long solidus overlay%): ?

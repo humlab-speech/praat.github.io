@@ -222,7 +222,7 @@ int OTMulti_compareCandidates (OTMulti me, integer icand1, integer icand2) {
 			return -1;   // candidate 1 is better than candidate 2
 		if (disharmony1 > disharmony2)
 			return +1;   // candidate 2 is better than candidate 1
-	} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT) {
+	} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT || my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY) {
 		double disharmony1 = 0.0, disharmony2 = 0.0;
 		for (integer icons = 1; icons <= my numberOfConstraints; icons ++) {
 			if (my constraints [icons]. disharmony > 0.0) {
@@ -284,7 +284,7 @@ static void _OTMulti_fillInHarmonies (OTMulti me, conststring32 form1, conststri
 		{
 			for (integer icons = 1; icons <= my numberOfConstraints; icons ++)
 				disharmony += exp (my constraints [icons]. disharmony) * marks [icons];
-		} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT) {
+		} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT || my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY) {
 			for (integer icons = 1; icons <= my numberOfConstraints; icons ++)
 				if (my constraints [icons]. disharmony > 0.0)
 					disharmony += my constraints [icons]. disharmony * marks [icons];
@@ -330,7 +330,8 @@ integer OTMulti_getWinner (OTMulti me, conststring32 form1, conststring32 form2)
 	try {
 		integer icand_best = 0;
 		if (my decisionStrategy == kOTGrammar_decisionStrategy::MAXIMUM_ENTROPY ||
-			my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY)
+			my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY ||
+			my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY)
 		{
 			_OTMulti_fillInHarmonies (me, form1, form2);
 			_OTMulti_fillInProbabilities (me, form1, form2);
@@ -388,14 +389,15 @@ static void OTMulti_modifyRankings (OTMulti me, integer iwinner, integer iloser,
 	if (iwinner == iloser)
 		return;
 	OTCandidate winner = & my candidates [iwinner], loser = & my candidates [iloser];
-	double step = relativePlasticityNoise == 0.0 ? plasticity : NUMrandomGauss (plasticity, relativePlasticityNoise * plasticity);
+	const double step = relativePlasticityNoise == 0.0 ? plasticity : NUMrandomGauss (plasticity, relativePlasticityNoise * plasticity);
 	bool multiplyStepByNumberOfViolations =
 		my decisionStrategy == kOTGrammar_decisionStrategy::HARMONIC_GRAMMAR ||
 		my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT ||
 		my decisionStrategy == kOTGrammar_decisionStrategy::MAXIMUM_ENTROPY ||
 		my decisionStrategy == kOTGrammar_decisionStrategy::POSITIVE_HG ||
 		my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_HG ||
-		my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY;
+		my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY ||
+		my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY;
 	if (Melder_debug != 0) {
 		/*
 			Perhaps override the standard update rule.

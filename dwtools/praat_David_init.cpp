@@ -212,21 +212,6 @@ DO
 }
 
 
-/********************** BandFilterSpectrogram *******************************************/
-
-FORM (GRAPHICS_EACH__BandFilterSpectrogram_drawFrequencyScale, U"", U"") {
-	REAL (fromFrequency, U"left Horizontal frequency range (Hz)", U"0.0")
-	REAL (toFrequency, U"right Horizontal frequency range (Hz)", U"0.0")
-	REAL (yFromFrequency, U"left Vertical frequency range (mel)", U"0.0")
-	REAL (yToFrequency, U"right Vertical frequency range (mel)", U"0.0")
-	BOOLEAN (garnish, U"Garnish", true)
-	OK
-DO
-	GRAPHICS_EACH (BandFilterSpectrogram)
-		BandFilterSpectrogram_drawFrequencyScale (me, GRAPHICS, fromFrequency, toFrequency, yFromFrequency, yToFrequency, garnish);
-	GRAPHICS_EACH_END
-}
-
 /********************** BarkFilter *******************************************/
 
 DIRECT (HELP__BarkFilter_help) {
@@ -2696,6 +2681,32 @@ DO
 		FilterBank_drawFrequencyScales (me, GRAPHICS, xFrequencyScale, xFromFrequency, xToFrequency, yFrequencyScale,
 			yFromFrequency, yToFrequency, garnish
 		);
+	GRAPHICS_EACH_END
+}
+
+FORM (GRAPHICS_EACH__MelSpectrogram_drawFrequencyScale, U"", U"") {
+	REAL (fromFrequency, U"left Horizontal frequency range (Hz)", U"0.0")
+	REAL (toFrequency, U"right Horizontal frequency range (Hz)", U"0.0")
+	REAL (yFromFrequency, U"left Vertical frequency range (mel)", U"0.0")
+	REAL (yToFrequency, U"right Vertical frequency range (mel)", U"0.0")
+	BOOLEAN (garnish, U"Garnish", true)
+	OK
+DO
+	GRAPHICS_EACH (MelSpectrogram)
+		BandFilterSpectrogram_drawFrequencyScale (me, GRAPHICS, fromFrequency, toFrequency, yFromFrequency, yToFrequency, garnish);
+	GRAPHICS_EACH_END
+}
+
+FORM (GRAPHICS_EACH__BarkSpectrogram_drawFrequencyScale, U"", U"") {
+	REAL (fromFrequency, U"left Horizontal frequency range (Hz)", U"0.0")
+	REAL (toFrequency, U"right Horizontal frequency range (Hz)", U"0.0")
+	REAL (yFromFrequency, U"left Vertical frequency range (bark)", U"0.0")
+	REAL (yToFrequency, U"right Vertical frequency range (bark)", U"0.0")
+	BOOLEAN (garnish, U"Garnish", true)
+	OK
+DO
+	GRAPHICS_EACH (MelSpectrogram)
+		BandFilterSpectrogram_drawFrequencyScale (me, GRAPHICS, fromFrequency, toFrequency, yFromFrequency, yToFrequency, garnish);
 	GRAPHICS_EACH_END
 }
 
@@ -8700,21 +8711,6 @@ static void praat_Eigen_draw_init (ClassInfo klas) {
 			GRAPHICS_EACH__Eigen_drawEigenvector);
 }
 
-static void praat_BandFilterSpectrogram_draw_init (ClassInfo klas);
-static void praat_BandFilterSpectrogram_draw_init (ClassInfo klas) {
-	praat_addAction1 (klas, 0, U"Draw -", nullptr, 0, nullptr);
-//	praat_addAction1 (klas, 0, U"Paint image...", nullptr, praat_DEPTH_1, DO_BandFilterSpectrogram_paintImage);
-//	praat_addAction1 (klas, 0, U"Draw filters...", nullptr, 1, DO_FilterBank_drawFilters);
-//	praat_addAction1 (klas, 0, U"Draw one contour...", nullptr, 1, DO_FilterBank_drawOneContour);
-//	praat_addAction1 (klas, 0, U"Draw contours...", nullptr, 1, DO_FilterBank_drawContours);
-//	praat_addAction1 (klas, 0, U"Paint contours...", nullptr, 1, DO_FilterBank_paintContours);
-//	praat_addAction1 (klas, 0, U"Paint cells...", nullptr, 1, DO_FilterBank_paintCells);
-//	praat_addAction1 (klas, 0, U"Paint surface...", nullptr, 1, DO_FilterBank_paintSurface);
-	praat_addAction1 (klas, 0, U"-- frequency scales --", nullptr, 1, nullptr);
-	praat_addAction1 (klas, 0, U"Draw frequency scale...", nullptr, 1, 
-			GRAPHICS_EACH__BandFilterSpectrogram_drawFrequencyScale);
-}
-
 static void praat_FilterBank_query_init (ClassInfo klas);
 static void praat_FilterBank_query_init (ClassInfo klas) {
 	praat_addAction1 (klas, 0, U"Query -", nullptr, 0, nullptr);
@@ -9125,7 +9121,9 @@ void praat_David_init () {
 
 	praat_addAction1 (classBarkSpectrogram, 0, U"BarkSpectrogram help", nullptr, 0,
 			HELP__BarkSpectrogram_help);
-	praat_BandFilterSpectrogram_draw_init (classBarkSpectrogram);
+	praat_addAction1 (classBarkSpectrogram, 0, U"Draw -", nullptr, 0, nullptr);
+	praat_addAction1 (classBarkSpectrogram, 0, U"Draw frequency scale...", nullptr, 1,
+			GRAPHICS_EACH__BarkSpectrogram_drawFrequencyScale);
 	praat_addAction1 (classBarkSpectrogram, 0, U"Paint image...", nullptr, 1,
 			GRAPHICS_EACH__BarkSpectrogram_paintImage);
 	praat_addAction1 (classBarkSpectrogram, 0, U"Draw Sekey-Hanson auditory filters...", nullptr, 1,
@@ -9824,7 +9822,9 @@ void praat_David_init () {
 
 	praat_addAction1 (classMelSpectrogram, 0, U"MelSpectrogram help", nullptr, 0,
 			HELP__MelSpectrogram_help);
-	praat_BandFilterSpectrogram_draw_init (classMelSpectrogram);
+	praat_addAction1 (classMelSpectrogram, 0, U"Draw -", nullptr, 0, nullptr);
+	praat_addAction1 (classMelSpectrogram, 0, U"Draw frequency scale...", nullptr, 1,
+			GRAPHICS_EACH__MelSpectrogram_drawFrequencyScale);
 	praat_addAction1 (classMelSpectrogram, 0, U"Paint image...", nullptr, 1,
 			GRAPHICS_EACH__MelSpectrogram_paintImage);
 	praat_addAction1 (classMelSpectrogram, 0, U"Draw triangular filter functions...", nullptr, 1,

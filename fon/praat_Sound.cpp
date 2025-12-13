@@ -928,8 +928,19 @@ FORM (QUERY_ONE_FOR_REAL__old_Sound_getNearestZeroCrossing, U"Sound: Get nearest
 	OK
 DO
 	QUERY_ONE_FOR_REAL (Sound)
-		if (my ny > 1)
-			Melder_throw (U"Cannot determine a zero crossing for a stereo sound.");
+		/*
+			We are in an "old" version of this function,
+			so any error that we would want to post will not surface.
+			So we just post a warning instead.
+		*/
+		if (my ny > 1) {
+			static bool warningHasBeenPosted = false;
+			if (! warningHasBeenPosted) {
+				Melder_warning (U"(Sound: Get nearest zero crossing:) ", me, U" is a stereo sound. We’ll look for a zero crossing only in the first channel.\n"
+						"This message will not be repeated during this ", Melder_upperCaseAppName(), U" session.");
+				warningHasBeenPosted = true;
+			}
+		}
 		const double result = Sound_getNearestZeroCrossing (me, time, 1);
 	QUERY_ONE_FOR_REAL_END (U" seconds")
 }

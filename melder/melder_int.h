@@ -82,7 +82,7 @@ inline bool Melder_integersAreBigEndian () {
 	return * (char *) & dummy == '\0';
 }
 
-inline integer operator"" _integer (unsigned long long value) { return integer (value); }
+inline integer operator""_integer (unsigned long long value) { return integer (value); }
 
 /*
 	We assume that the types "integer" and "uinteger" are both large enough to contain
@@ -124,7 +124,7 @@ inline integer integer_abs (integer n) {
 	if constexpr (sizeof (integer) == sizeof (long))
 		return labs ((long_not_integer) n);
 	else {
-		static_assert (sizeof (integer) == sizeof (long long));
+		Melder_assert (sizeof (integer) == sizeof (long long));
 		return llabs (n);
 	}
 }

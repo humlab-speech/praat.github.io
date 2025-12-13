@@ -29,6 +29,11 @@ R"~~~(
 
 Latest changes in Praat.
 
+##6.4.47# (7 November 2025)
+• ##Sound: To LPC...#: channel averaging by default.
+• @`runSystem` and @`runSubprocess` should not divert a terminal window’s standard output.
+• Repaired a bug from November 2014 by which writing a BarkSpectrogram to a binary file used an incorrect format.
+
 ##6.4.46# (20 October 2025)
 • ScriptEditor: made ##Run selection# work again on Windows and Linux (bug since 6.4.44).
 • Made pause windows (and perhaps Demo window) compatible with macOS 26 (Tahoe).
@@ -289,6 +294,34 @@ Latest changes in Praat.
   available again, now under the COMPATIBILITY section of the output of “Editor info”.
   This will allow older editor scripts to continue to run without change.
 
+What used to be new?
+====================
+• @@What was new in 6.4?
+• @@What was new in 6.3?
+• @@What was new in 6.2?
+• @@What was new in 6.1?
+• @@What was new in 6.0?
+• @@What was new in 5.4?
+• @@What was new in 5.3?
+• @@What was new in 5.2?
+• @@What was new in 5.1?
+• @@What was new in 5.0?
+• @@What was new in 4.6?
+• @@What was new in 4.5?
+• @@What was new in 4.4?
+• @@What was new in 4.3?
+• @@What was new in 4.2?
+• @@What was new in 4.1?
+• @@What was new in 4.0?
+• @@What was new in 3.9?
+• @@What was new in 3.8?
+• @@What was new in 3.7?
+• @@What was new in 3.6?
+• @@What was new in 3.5?
+• @@What was new in 3.3?
+• @@What was new in 3.2?
+• @@What was new in 3.1?
+
 ################################################################################
 "What was new in 6.4?"
 © Paul Boersma 2022,2023
@@ -419,34 +452,6 @@ and is interruptable by the Escape key.
 
 ##6.3.01# (21 November 2022)
 • Fixed a crash introduced in 6.3 when closing an editor window by choosing #Close (or by typing Command-W).
-
-What used to be new?
-====================
-• @@What was new in 6.4?
-• @@What was new in 6.3?
-• @@What was new in 6.2?
-• @@What was new in 6.1?
-• @@What was new in 6.0?
-• @@What was new in 5.4?
-• @@What was new in 5.3?
-• @@What was new in 5.2?
-• @@What was new in 5.1?
-• @@What was new in 5.0?
-• @@What was new in 4.6?
-• @@What was new in 4.5?
-• @@What was new in 4.4?
-• @@What was new in 4.3?
-• @@What was new in 4.2?
-• @@What was new in 4.1?
-• @@What was new in 4.0?
-• @@What was new in 3.9?
-• @@What was new in 3.8?
-• @@What was new in 3.7?
-• @@What was new in 3.6?
-• @@What was new in 3.5?
-• @@What was new in 3.3?
-• @@What was new in 3.2?
-• @@What was new in 3.1?
 
 ################################################################################
 "What was new in 6.3?"

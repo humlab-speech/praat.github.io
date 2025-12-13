@@ -366,7 +366,7 @@ static void _OTGrammar_fillInHarmonies (OTGrammar me, integer itab) {
 		{
 			for (integer icons = 1; icons <= my numberOfConstraints; icons ++)
 				disharmony += exp (my constraints [icons]. disharmony) * marks [icons];
-		} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT) {
+		} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT || my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY) {
 			for (integer icons = 1; icons <= my numberOfConstraints; icons ++)
 				if (my constraints [icons]. disharmony > 0.0)
 					disharmony += my constraints [icons]. disharmony * marks [icons];
@@ -419,7 +419,7 @@ int OTGrammar_compareCandidates (OTGrammar me, integer itab1, integer icand1, in
 			return -1;   // candidate 1 is better than candidate 2
 		if (disharmony1 > disharmony2)
 			return +1;   // candidate 2 is better than candidate 1
-	} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT) {
+	} else if (my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT || my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY) {
 		double disharmony1 = 0.0, disharmony2 = 0.0;
 		for (integer icons = 1; icons <= my numberOfConstraints; icons ++) {
 			if (my constraints [icons]. disharmony > 0.0) {
@@ -487,7 +487,8 @@ static void _OTGrammar_fillInProbabilities (OTGrammar me, integer itab) {
 integer OTGrammar_getWinner (OTGrammar me, integer itab) {
 	integer icand_best = 1;
 	if (my decisionStrategy == kOTGrammar_decisionStrategy::MAXIMUM_ENTROPY ||
-		my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY)
+		my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY ||
+		my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY)
 	{
 		_OTGrammar_fillInHarmonies (me, itab);
 		_OTGrammar_fillInProbabilities (me, itab);
@@ -527,7 +528,8 @@ integer OTGrammar_getWinner (OTGrammar me, integer itab) {
 
 integer OTGrammar_getNumberOfOptimalCandidates (OTGrammar me, integer itab) {
 	if (my decisionStrategy == kOTGrammar_decisionStrategy::MAXIMUM_ENTROPY ||
-		my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY) return 1;
+		my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY ||
+		my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY) return 1;
 	integer icand_best = 1, numberOfBestCandidates = 1;
 	for (integer icand = 2; icand <= my tableaus [itab]. numberOfCandidates; icand ++) {
 		int comparison = OTGrammar_compareCandidates (me, itab, icand, itab, icand_best);
@@ -1248,14 +1250,15 @@ static void OTGrammar_modifyRankings (OTGrammar me, integer itab, integer iwinne
 	try {
 		OTGrammarTableau tableau = & my tableaus [itab];
 		OTGrammarCandidate winner = & tableau -> candidates [iwinner], adult = & tableau -> candidates [iadult];
-		double step = learningStep (plasticity, relativePlasticityNoise);
+		const double step = learningStep (plasticity, relativePlasticityNoise);
 		bool multiplyStepByNumberOfViolations =
 			my decisionStrategy == kOTGrammar_decisionStrategy::HARMONIC_GRAMMAR ||
 			my decisionStrategy == kOTGrammar_decisionStrategy::LINEAR_OT ||
 			my decisionStrategy == kOTGrammar_decisionStrategy::MAXIMUM_ENTROPY ||
 			my decisionStrategy == kOTGrammar_decisionStrategy::POSITIVE_HG ||
 			my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_HG ||
-			my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY;
+			my decisionStrategy == kOTGrammar_decisionStrategy::EXPONENTIAL_MAXIMUM_ENTROPY ||
+			my decisionStrategy == kOTGrammar_decisionStrategy::NONNEGATIVE_MAXIMUM_ENTROPY;
 		if (Melder_debug != 0) {
 			/*
 			 * Perhaps override the standard update rule.

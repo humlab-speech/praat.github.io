@@ -189,7 +189,9 @@ run `clangarm64.exe` to get a `clangarm64` shell. In that shell, run `pacman -Su
 `pacman -S mingw-w64-clang-aarch64-clang` to install the build tools package.
 In the same way you can create a `clang64` toolchain and a `clang32` toolchain
 (`pacman -S mingw-w64-clang-x86_64-clang` and `pacman -S mingw-w64-i686-clang`),
-which are good alternatives to `mingw64` and `mingw32`.
+which are good alternatives to `mingw64` and `mingw32`;
+in 2025, MSYS2 ended support for Intel32, so you may have to use `mingw32` for that,
+unless you have an old Intel32 toolchain lying around.
 
 Move the Praat sources folders somewhere in your `/home/yourname` tree,
 perhaps even in three places, e.g. as `/home/yourname/praats-arm64`,
