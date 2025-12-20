@@ -209,6 +209,10 @@ void Thing_recognizeClassesByName (ClassInfo readableClass, ...);
 void Thing_recognizeClassByOtherName (ClassInfo readableClass, conststring32 otherName);
 integer Thing_listReadableClasses ();
 
+/* Expose class registry for shared library access (pladdrr fix) */
+extern integer theNumberOfReadableClasses;
+extern ClassInfo theReadableClasses [1 + 1000];
+
 ClassInfo Thing_classFromClassName (conststring32 className, int *formatVersion);
 /*
 	Function:

@@ -102,6 +102,7 @@ void Thing_recognizeClassByOtherName (ClassInfo readableClass, conststring32 oth
 }
 
 ClassInfo Thing_classFromClassName (conststring32 klas, int *out_formatVersion) {
+	fprintf(stderr, "DEBUG Thing_classFromClassName: ENTRY\n"); fflush(stderr);
 	static char32 buffer [1+100];
 	str32ncpy (buffer, klas ? klas : U"", 100);
 	buffer [100] = U'\0';
@@ -115,15 +116,19 @@ ClassInfo Thing_classFromClassName (conststring32 klas, int *out_formatVersion) 
 			*out_formatVersion = 0;
 	}
 	
+	fprintf(stderr, "DEBUG: Looking for class, registry has %ld classes\n", (long)theNumberOfReadableClasses); fflush(stderr);
 
 	/*
 		First try the class names that were registered with Thing_recognizeClassesByName.
 	*/
 	for (integer i = 1; i <= theNumberOfReadableClasses; i ++) {
+		fprintf(stderr, "DEBUG: Checking index %ld\n", (long)i); fflush(stderr);
 		ClassInfo classInfo = theReadableClasses [i];
 		if (!classInfo) {
+			fprintf(stderr, "DEBUG: Null ClassInfo at index %ld\n", (long)i); fflush(stderr);
 			continue;
 		}
+		fprintf(stderr, "DEBUG: Checking class at index %ld\n", (long)i); fflush(stderr);
 		if (str32equ (buffer, classInfo -> className))
 			return classInfo;
 	}
@@ -142,11 +147,15 @@ ClassInfo Thing_classFromClassName (conststring32 klas, int *out_formatVersion) 
 }
 
 autoThing Thing_newFromClassName (conststring32 className, int *out_formatVersion) {
+	fprintf(stderr, "DEBUG Thing_newFromClassName: ENTRY\n"); fflush(stderr);
 	try {
+		fprintf(stderr, "DEBUG: About to call Thing_classFromClassName\n"); fflush(stderr);
 		ClassInfo classInfo = Thing_classFromClassName (className, out_formatVersion);
+		fprintf(stderr, "DEBUG: Got classInfo = %p\n", (void*)classInfo); fflush(stderr);
 		if (!classInfo) {
 			Melder_throw (U"Thing_classFromClassName returned null for '", className, U"'");
 		}
+		fprintf(stderr, "DEBUG: About to call Thing_newFromClass\n"); fflush(stderr);
 		return Thing_newFromClass (classInfo);
 	} catch (MelderError) {
 		Melder_throw (className, U" not created.");

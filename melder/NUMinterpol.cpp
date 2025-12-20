@@ -342,40 +342,27 @@ struct improve_params {
 };
 
 double improve_evaluate (double x, void *closure) {
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] improve_evaluate called: x=%.3f closure=%p\n", x, closure); fflush(stderr);
 	Melder_assert (isdefined (x));
 	struct improve_params *me = (struct improve_params *) closure;
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] me=%p me->y.cells=%p me->y.size=%ld me->depth=%ld\n", 
-		(void*)me, (void*)me->y.cells, (long)me->y.size, (long)me->depth); fflush(stderr);
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] About to call NUM_interpolate_sinc\n"); fflush(stderr);
 	const double y = NUM_interpolate_sinc (my y, x, my depth);
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] NUM_interpolate_sinc returned: y=%.6f\n", y); fflush(stderr);
 	return my isMaximum ? - y : y;
 }
 
 double NUMimproveExtremum (constVEC const& y, integer ixmid, integer interpolationDepth, double *ixmid_real, bool isMaximum) {
 	struct improve_params params;
 	double result;
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] Enter: ixmid=%ld depth=%ld\n", (long)ixmid, (long)interpolationDepth); fflush(stderr);
 	if (ixmid <= 1) { *ixmid_real = double (1); return y [1]; }
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] Check1 pass\n"); fflush(stderr);
 	if (ixmid >= y.size) { *ixmid_real = double (y.size); return y [y.size]; }
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] Check2 pass depth=%ld\n", (long)interpolationDepth); fflush(stderr);
 	if (interpolationDepth <= NUM_PEAK_INTERPOLATE_NONE) { *ixmid_real = double (ixmid); return y [ixmid]; }
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] Check3 pass\n"); fflush(stderr);
 	if (interpolationDepth == NUM_PEAK_INTERPOLATE_PARABOLIC) {
 		const double dy = 0.5 * (y [ixmid + 1] - y [ixmid - 1]);
 		const double d2y = 2 * y [ixmid] - y [ixmid - 1] - y [ixmid + 1];
 		*ixmid_real = ixmid + dy / d2y;
 		return y [ixmid] + 0.5 * dy * dy / d2y;
 	}
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] Check4 pass, doing sinc\n"); fflush(stderr);
 	params. depth = (interpolationDepth == NUM_PEAK_INTERPOLATE_CUBIC ? NUM_VALUE_INTERPOLATE_CUBIC : interpolationDepth == NUM_PEAK_INTERPOLATE_SINC70 ? NUM_VALUE_INTERPOLATE_SINC70 : NUM_VALUE_INTERPOLATE_SINC700);
 	params. y = y;
 	params. isMaximum = isMaximum;
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] Calling brent\n"); fflush(stderr);
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] Function pointer: %p, params addr: %p\n", (void*)improve_evaluate, (void*)&params); fflush(stderr);
-	fprintf(stderr, "[NUMINTERPOL_DEBUG] params.y.cells=%p params.y.size=%ld\n", (void*)params.y.cells, (long)params.y.size); fflush(stderr);
 	*ixmid_real = NUMminimize_brent (improve_evaluate, ixmid - 1, ixmid + 1, & params, 1e-10, & result);
 	return isMaximum ? - result : result;
 }

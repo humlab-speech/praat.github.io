@@ -184,8 +184,12 @@ conststring32 MelderReadText_getLineNumber (MelderReadText me) {
 }
 
 autoMelderReadText MelderReadText_createFromFile (MelderFile file) {
+	fprintf(stderr, "DEBUG MelderReadText_createFromFile: ENTRY\n"); fflush(stderr);
 	autoMelderReadText me = std::make_unique <structMelderReadText> ();
+	fprintf(stderr, "DEBUG: unique_ptr created, about to call MelderFile_readText\n"); fflush(stderr);
+	fprintf(stderr, "DEBUG: file pointer = %p\n", (void*)file); fflush(stderr);
 	my string32 = MelderFile_readText (file, & my string8);
+	fprintf(stderr, "DEBUG: MelderFile_readText returned successfully\n"); fflush(stderr);
 	if (my string32) {
 		my readPointer32 = & my string32 [0];
 	} else {
