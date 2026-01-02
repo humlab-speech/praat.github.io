@@ -45,6 +45,9 @@ autoFormant Formant_create (double tmin, double tmax, integer nt, double dt, dou
 		my frames [1..nt]. formants [1..maxnFormants] = 0.0;
 		my frames [1..nt]. bandwidths [1..maxnFormants] = 0.0;
 */
+
+// Stub for FormantPath support (pladdrr)
+autoFormant Formant_extractPart (Formant me, double tmin, double tmax);
 integer Formant_getMinNumFormants (Formant me);
 integer Formant_getMaxNumFormants (Formant me);
 
