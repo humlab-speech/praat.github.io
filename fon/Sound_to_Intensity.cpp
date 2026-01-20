@@ -33,6 +33,11 @@
 
 #include "Sound_to_Intensity.h"
 
+// SIMD optimization support (Phase 1.2)
+#ifdef HAVE_XSIMD
+#include <xsimd/xsimd.hpp>
+#endif
+
 static autoIntensity Sound_to_Intensity_ (Sound me, double pitchFloor, double timeStep, bool subtractMeanPressure) {
 	try {
 		/*
@@ -107,10 +112,41 @@ static autoIntensity Sound_to_Intensity_ (Sound me, double pitchFloor, double ti
 				amplitudePart  <<=  my z [ichan].part (leftSample, rightSample);
 				if (subtractMeanPressure)
 					centre_VEC_inout (amplitudePart);
+				
+#ifdef HAVE_XSIMD
+				// SIMD-accelerated RMS computation (Phase 1.2)
+				using batch = xsimd::batch<double>;
+				constexpr size_t simd_size = batch::size;
+				
+				batch acc_xw(0.0), acc_w(0.0);
+				integer isamp = 1;
+				
+				// SIMD loop
+				for (; isamp + static_cast<integer>(simd_size) <= amplitudePart.size; isamp += simd_size) {
+					batch amp = xsimd::load_unaligned(&amplitudePart[isamp]);
+					batch win = xsimd::load_unaligned(&windowPart[isamp]);
+					
+					// sumxw += amp^2 * window
+					acc_xw = xsimd::fma(amp * amp, win, acc_xw);
+					// sumw += window
+					acc_w += win;
+				}
+				
+				sumxw += xsimd::reduce_add(acc_xw);
+				sumw += xsimd::reduce_add(acc_w);
+				
+				// Scalar remainder
+				for (; isamp <= amplitudePart.size; isamp ++) {
+					sumxw += sqr (amplitudePart [isamp]) * windowPart [isamp];
+					sumw += windowPart [isamp];
+				}
+#else
+				// Scalar fallback
 				for (integer isamp = 1; isamp <= amplitudePart.size; isamp ++) {
 					sumxw += sqr (amplitudePart [isamp]) * windowPart [isamp];
 					sumw += windowPart [isamp];
 				}
+#endif
 			}
 			const double intensity_in_Pa2 = double (sumxw / sumw);
 			constexpr double hearingThreshold_in_Pa = 2.0e-5;

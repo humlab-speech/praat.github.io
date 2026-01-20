@@ -57,7 +57,7 @@
  djmw 20101209 removed NUMwcscmp is Melder_wcscmp now
  djmw 20110304 Thing_new
  djmw 20111110 use autostringvector
-*/
+ */
 
 #include "SVD.h"
 #include "Eigen.h"
@@ -65,6 +65,11 @@
 #include "NUM2.h"
 #include "NUMmachar.h"
 #include "melder.h"
+
+// SIMD optimization support (Phase 1.3)
+#ifdef HAVE_XSIMD
+#include <xsimd/xsimd.hpp>
+#endif
 
 #include "gsl_randist.h"
 
@@ -1462,10 +1467,40 @@ double VECburg (VEC const& a, constVEC const& x) {
 		// (7)
 
 		longdouble num = 0.0, denum = 0.0;
+		
+#ifdef HAVE_XSIMD
+		// SIMD-accelerated Burg reflection coefficient computation (Phase 1.3)
+		using batch = xsimd::batch<double>;
+		constexpr size_t simd_size = batch::size;
+		
+		batch num_batch(0.0), denum_batch(0.0);
+		integer j = 1;
+		
+		// SIMD loop
+		for (; j + static_cast<integer>(simd_size) <= n - i; j += simd_size) {
+			batch b1_batch = xsimd::load_unaligned(&b1[j]);
+			batch b2_batch = xsimd::load_unaligned(&b2[j]);
+			
+			num_batch = xsimd::fma(b1_batch, b2_batch, num_batch);
+			denum_batch = xsimd::fma(b1_batch, b1_batch, denum_batch);
+			denum_batch = xsimd::fma(b2_batch, b2_batch, denum_batch);
+		}
+		
+		num += xsimd::reduce_add(num_batch);
+		denum += xsimd::reduce_add(denum_batch);
+		
+		// Scalar remainder
+		for (; j <= n - i; j ++) {
+			num += b1 [j] * b2 [j];
+			denum += b1 [j] * b1 [j] + b2 [j] * b2 [j];
+		}
+#else
+		// Scalar fallback
 		for (integer j = 1; j <= n - i; j ++) {
 			num += b1 [j] * b2 [j];
 			denum += b1 [j] * b1 [j] + b2 [j] * b2 [j];
 		}
+#endif
 
 		if (denum <= 0.0)
 			return 0.0;	// warning ill-conditioned
@@ -1487,10 +1522,43 @@ double VECburg (VEC const& a, constVEC const& x) {
 
 			for (integer j = 1; j <= i; j ++)
 				aa [j] = a [j];
+			
+#ifdef HAVE_XSIMD
+			// SIMD-accelerated prediction error update (Phase 1.3)
+			using batch = xsimd::batch<double>;
+			constexpr size_t simd_size = batch::size;
+			
+			batch aa_i(aa[i]);
+			integer j = 1;
+			
+			// SIMD loop
+			for (; j + static_cast<integer>(simd_size) <= n - i - 1; j += simd_size) {
+				batch b1_curr = xsimd::load_unaligned(&b1[j]);
+				batch b2_curr = xsimd::load_unaligned(&b2[j]);
+				batch b2_next = xsimd::load_unaligned(&b2[j + 1]);
+				batch b1_next = xsimd::load_unaligned(&b1[j + 1]);
+				
+				// b1[j] -= aa[i] * b2[j]
+				b1_curr = b1_curr - aa_i * b2_curr;
+				b1_curr.store_unaligned(&b1[j]);
+				
+				// b2[j] = b2[j+1] - aa[i] * b1[j+1]
+				batch b2_new = b2_next - aa_i * b1_next;
+				b2_new.store_unaligned(&b2[j]);
+			}
+			
+			// Scalar remainder
+			for (; j <= n - i - 1; j ++) {
+				b1 [j] -= aa [i] * b2 [j];
+				b2 [j] = b2 [j + 1] - aa [i] * b1 [j + 1];
+			}
+#else
+			// Scalar fallback
 			for (integer j = 1; j <= n - i - 1; j ++) {
 				b1 [j] -= aa [i] * b2 [j];
 				b2 [j] = b2 [j + 1] - aa [i] * b1 [j + 1];
 			}
+#endif
 		}
 	}
 	return xms;

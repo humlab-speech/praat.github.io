@@ -36,6 +36,18 @@
 #include "NUM2.h"
 #include "Sound_and_Spectrum.h"
 
+// SIMD optimization support (Phase 1.1)
+#ifdef HAVE_XSIMD
+#include <xsimd/xsimd.hpp>
+// Forward declarations from pitch_simd_bridge.cpp (simd_bridge_direct namespace)
+namespace simd_bridge_direct {
+    void accumulate_power_spectrum_simd(constMAT const& frame, VEC const& ac, 
+                                        integer nsampFFT, integer ny);
+    void compute_fcc_product_simd(const double* amp, double localMean, 
+                                  integer lag, integer nsamp_window, longdouble& product);
+}
+#endif
+
 #define AC_HANNING  0
 #define AC_GAUSS  1
 #define FCC_NORMAL  2
@@ -134,29 +146,44 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 				const double y0 = amp [i] - localMean [channel];
 				const double yZ = amp [i + nsamp_window] - localMean [channel];
 				sumy2 += yZ * yZ - y0 * y0;
+				
+#ifdef HAVE_XSIMD
+				// SIMD-accelerated inner product (Phase 1.1)
+				simd_bridge_direct::compute_fcc_product_simd(
+					amp, localMean[channel], i, nsamp_window, product);
+#else
 				for (integer j = 1; j <= nsamp_window; j ++) {
 					const double x = amp [j] - localMean [channel];
 					const double y = amp [i + j] - localMean [channel];
 					product += x * y;
 				}
+#endif
 			}
 			r [- i] = r [i] = (double) product / sqrt ((double) sumx2 * (double) sumy2);
 		}
 	} else {
 
-		/*
-			The FFT of the autocorrelation is the power spectrum.
-		*/
-		for (integer i = 1; i <= nsampFFT; i ++)
-			ac [i] = 0.0;
-		for (integer channel = 1; channel <= my ny; channel ++) {
-			NUMfft_forward (fftTable, VEC (& frame [channel] [1], fftTable->n));   // complex spectrum
-			ac [1] += frame [channel] [1] * frame [channel] [1];   // DC component
-			for (integer i = 2; i < nsampFFT; i += 2)
-				ac [i] += frame [channel] [i] * frame [channel] [i] + frame [channel] [i+1] * frame [channel] [i+1];   // power spectrum
-			ac [nsampFFT] += frame [channel] [nsampFFT] * frame [channel] [nsampFFT];   // Nyquist frequency
-		}
-		NUMfft_backward (fftTable, ac);   // autocorrelation
+	/*
+		The FFT of the autocorrelation is the power spectrum.
+	*/
+	for (integer i = 1; i <= nsampFFT; i ++)
+		ac [i] = 0.0;
+	for (integer channel = 1; channel <= my ny; channel ++) {
+		NUMfft_forward (fftTable, VEC (& frame [channel] [1], fftTable->n));   // complex spectrum
+		
+#ifdef HAVE_XSIMD
+		// SIMD-accelerated power spectrum accumulation (Phase 1.1)
+		// This replaces the scalar loops below for better performance
+		simd_bridge_direct::accumulate_power_spectrum_simd(frame, ac, nsampFFT, my ny);
+	}
+#else
+		ac [1] += frame [channel] [1] * frame [channel] [1];   // DC component
+		for (integer i = 2; i < nsampFFT; i += 2)
+			ac [i] += frame [channel] [i] * frame [channel] [i] + frame [channel] [i+1] * frame [channel] [i+1];   // power spectrum
+		ac [nsampFFT] += frame [channel] [nsampFFT] * frame [channel] [nsampFFT];   // Nyquist frequency
+	}
+#endif
+	NUMfft_backward (fftTable, ac);   // autocorrelation
 
 		// DEBUG POINT 3: Check autocorrelation values after FFT
 /*
