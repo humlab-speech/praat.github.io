@@ -33,10 +33,24 @@
 #include "Polynomial.h"
 #include "Roots.h"
 
+// SIMD Phase 1.3: Formant extraction optimization
+#ifdef HAVE_XSIMD
+extern "C" double VECburg_simd_bridge(VEC const& lpc_coeffs, constVEC const& signal);
+extern "C" void apply_preemphasis_simd_bridge(VEC const& signal, double preemphasis_frequency, double sampling_rate);
+extern bool should_use_simd_for_formants();
+#endif
+
 static void burg (constVEC samples, VEC coefficients,
 	Formant_Frame frame, double nyquistFrequency, double safetyMargin)
 {
+#ifdef HAVE_XSIMD
+	// SIMD-accelerated Burg's algorithm (Phase 1.3)
+	double a0 = ( should_use_simd_for_formants() ?
+	              VECburg_simd_bridge (coefficients, samples) :
+	              VECburg (coefficients, samples) );
+#else
 	double a0 = VECburg (coefficients, samples);
+#endif
 	(void) a0;
 	/*
 		Convert LP coefficients to polynomial.
