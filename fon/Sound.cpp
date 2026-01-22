@@ -31,6 +31,13 @@
 #include "enums_getValue.h"
 #include "Sound_enums.h"
 
+// SIMD Phase 2.2: Pre-emphasis filter optimization
+#ifdef HAVE_XSIMD
+extern "C" void apply_preemphasis_factor_simd_bridge(VEC const& s, double emphasisFactor);
+extern "C" void apply_deemphasis_factor_simd_bridge(VEC const& s, double emphasisFactor);
+extern "C" bool should_use_simd_for_preemphasis();
+#endif
+
 Thing_implement (Sound, Vector, 2);
 
 void structSound :: v1_info () {
@@ -1240,22 +1247,44 @@ double Sound_computeEmphasisFactor (constSound me, double cutoffFrequency) {
 
 void Sound_preEmphasize_inplace (mutableSound me, double cutoffFrequency) {
 	const double emphasisFactor = Sound_computeEmphasisFactor (me, cutoffFrequency);
-	if (emphasisFactor != 0.0)   // OPTIMIZE; will happen for cut-off frequencies above 119 times the sampling frequency
+	if (emphasisFactor != 0.0) {  // OPTIMIZE; will happen for cut-off frequencies above 119 times the sampling frequency
 		for (integer channel = 1; channel <= my ny; channel ++) {
-			const VEC s = my z.row (channel);
-			for (integer i = my nx; i >= 2; i --)
-				s [i] -= emphasisFactor * s [i - 1];
+			VEC s = my z.row (channel);
+#ifdef HAVE_XSIMD
+			if (should_use_simd_for_preemphasis()) {
+				// SIMD-accelerated pre-emphasis (Phase 2.2)
+				apply_preemphasis_factor_simd_bridge(s, emphasisFactor);
+			} else {
+#endif
+				// Scalar fallback
+				for (integer i = my nx; i >= 2; i --)
+					s [i] -= emphasisFactor * s [i - 1];
+#ifdef HAVE_XSIMD
+			}
+#endif
 		}
+	}
 }
 
 void Sound_deEmphasize_inplace (Sound me, double cutoffFrequency) {
 	const double emphasisFactor = Sound_computeEmphasisFactor (me, cutoffFrequency);
-	if (emphasisFactor != 0.0)   // OPTIMIZE; will happen for cut-off frequencies above 119 times the sampling frequency
+	if (emphasisFactor != 0.0) {  // OPTIMIZE; will happen for cut-off frequencies above 119 times the sampling frequency
 		for (integer channel = 1; channel <= my ny; channel ++) {
-			const VEC s = my z.row (channel);
-			for (integer i = 2; i <= my nx; i ++)
-				s [i] += emphasisFactor * s [i - 1];
+			VEC s = my z.row (channel);
+#ifdef HAVE_XSIMD
+			if (should_use_simd_for_preemphasis()) {
+				// SIMD-accelerated de-emphasis (Phase 2.2)
+				apply_deemphasis_factor_simd_bridge(s, emphasisFactor);
+			} else {
+#endif
+				// Scalar fallback
+				for (integer i = 2; i <= my nx; i ++)
+					s [i] += emphasisFactor * s [i - 1];
+#ifdef HAVE_XSIMD
+			}
+#endif
 		}
+	}
 }
 
 autoSound Sound_filter_preemphasis (constSound me, double frequency) {
