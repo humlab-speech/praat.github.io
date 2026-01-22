@@ -25,6 +25,18 @@
 #include "Matrix_extensions.h"
 #include "NUM2.h"
 
+// Forward declarations for SIMD MFCC operations
+#ifdef HAVE_XSIMD
+extern "C" {
+	void dct_simd_bridge(
+		VEC const& target,
+		constVEC const& x,
+		constMAT const& cosinesTable
+	);
+	bool should_use_simd_for_mfcc();
+}
+#endif
+
 Thing_implement (BandFilterSpectrogram, Matrix, 2);
 
 void structBandFilterSpectrogram :: v1_info () {
@@ -108,12 +120,25 @@ void BandFilterSpectrogram_into_CC (BandFilterSpectrogram me, CC thee, integer n
 	autoVEC y = raw_VEC (my ny);
 	numberOfCoefficients = numberOfCoefficients > my ny - 1 ? my ny - 1 : numberOfCoefficients;
 	Melder_assert (numberOfCoefficients > 0);
-	// 20130220 new interpretation of maximumNumberOfCoefficients: necessary for the inverse transform 
+	// 20130220 new interpretation of maximumNumberOfCoefficients: necessary for the inverse transform
 	for (integer frame = 1; frame <= my nx; frame ++) {
 		const CC_Frame ccframe = & thy frame [frame];
 		for (integer i = 1; i <= my ny; i ++)
 			x [i] = my v_getValueAtSample (frame, i, 1);   // z [i] [frame];
-		VECcosineTransform_preallocated (y.get(), x.get(), cosinesTable.get());
+
+		// DCT: Convert dB spectrum to cepstral coefficients
+#ifdef HAVE_XSIMD
+		if (should_use_simd_for_mfcc()) {
+			// SIMD path: vectorized DCT
+			dct_simd_bridge(y.get(), x.get(), cosinesTable.get());
+		} else {
+#endif
+			// Scalar path: original DCT
+			VECcosineTransform_preallocated (y.get(), x.get(), cosinesTable.get());
+#ifdef HAVE_XSIMD
+		}
+#endif
+
 		CC_Frame_init (ccframe, numberOfCoefficients);
 		for (integer i = 1; i <= numberOfCoefficients; i ++)
 			ccframe -> c [i] = y [i + 1];

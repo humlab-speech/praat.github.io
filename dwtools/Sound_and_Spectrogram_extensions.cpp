@@ -32,6 +32,22 @@
 #include "Vector.h"
 #include "NUM2.h"
 
+// Forward declarations for SIMD MFCC operations
+#ifdef HAVE_XSIMD
+extern "C" {
+	double triangular_filter_simd_bridge(
+		constVEC const& spectrum_power,
+		constVEC const& frequencies,
+		integer ifrom,
+		integer ito,
+		double fl_hz,
+		double fc_hz,
+		double fh_hz
+	);
+	bool should_use_simd_for_mfcc();
+}
+#endif
+
 autoSound BandFilterSpectrogram_as_Sound (BandFilterSpectrogram me, int to_dB);
 
 /*
@@ -163,23 +179,56 @@ autoBarkSpectrogram Sound_to_BarkSpectrogram (Sound me, double analysisWidth, do
 static void Sound_into_MelSpectrogram_frame (Sound me, MelSpectrogram thee, integer frame) {
 	autoSpectrum him = Sound_to_Spectrum_power (me);
 
+#ifdef HAVE_XSIMD
+	// Precompute frequency array for SIMD (if enabled)
+	autoVEC frequencies;
+	if (should_use_simd_for_mfcc()) {
+		frequencies = raw_VEC (his nx);
+		for (integer i = 1; i <= his nx; i++)
+			frequencies[i] = his x1 + (i - 1) * his dx;
+	}
+#endif
+
 	for (integer ifilter = 1; ifilter <= thy ny; ifilter ++) {
-		longdouble power = 0.0;
 		const double fc_mel = thy y1 + (ifilter - 1) * thy dy;
 		const double fc_hz = thy v_frequencyToHertz (fc_mel);
 		const double fl_hz = thy v_frequencyToHertz (std::max (fc_mel - thy dy, 0.0));
 		const double fh_hz =  thy v_frequencyToHertz (std::min (fc_mel + thy dy, his xmax));
 		integer ifrom, ito;
 		Sampled_getWindowSamples (him.get(), fl_hz, fh_hz, & ifrom, & ito);
-		for (integer i = ifrom; i <= ito; i ++) {
-			/*
-				Bin with a triangular filter the power (= amplitude-squared)
-			*/
-			const double f = his x1 + (i - 1) * his dx;
-			const double a = NUMtriangularfilter_amplitude (fl_hz, fc_hz, fh_hz, f);
-			power += a * his z [1] [i];
+
+		double power;
+
+#ifdef HAVE_XSIMD
+		if (should_use_simd_for_mfcc()) {
+			// SIMD path: triangular filter with vectorized operations
+			power = triangular_filter_simd_bridge(
+				his z.row(1),
+				frequencies.get(),
+				ifrom,
+				ito,
+				fl_hz,
+				fc_hz,
+				fh_hz
+			);
+		} else {
+#endif
+			// Scalar path: original loop
+			longdouble power_acc = 0.0;
+			for (integer i = ifrom; i <= ito; i ++) {
+				/*
+					Bin with a triangular filter the power (= amplitude-squared)
+				*/
+				const double f = his x1 + (i - 1) * his dx;
+				const double a = NUMtriangularfilter_amplitude (fl_hz, fc_hz, fh_hz, f);
+				power_acc += a * his z [1] [i];
+			}
+			power = double (power_acc);
+#ifdef HAVE_XSIMD
 		}
-		thy z [ifilter] [frame] = double (power);
+#endif
+
+		thy z [ifilter] [frame] = power;
 	}
 }
 
