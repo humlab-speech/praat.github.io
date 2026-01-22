@@ -36,15 +36,25 @@
 #include "NUM2.h"
 #include "Sound_and_Spectrum.h"
 
-// SIMD optimization support (Phase 1.1)
+// SIMD optimization support (Phase 1.1, 2.3)
 #ifdef HAVE_XSIMD
 #include <xsimd/xsimd.hpp>
 // Forward declarations from pitch_simd_bridge.cpp (simd_bridge_direct namespace)
 namespace simd_bridge_direct {
-    void accumulate_power_spectrum_simd(constMAT const& frame, VEC const& ac, 
+    void accumulate_power_spectrum_simd(constMAT const& frame, VEC const& ac,
                                         integer nsampFFT, integer ny);
-    void compute_fcc_product_simd(const double* amp, double localMean, 
+    void compute_fcc_product_simd(const double* amp, double localMean,
                                   integer lag, integer nsamp_window, longdouble& product);
+}
+// Forward declarations from pitch_filter_simd.cpp (Phase 2.3)
+extern "C" {
+    void apply_gaussian_lowpass_to_spectrum_simd_bridge(
+        VEC const& spectrum_re,
+        VEC const& spectrum_im,
+        constVEC const& frequencies,
+        double lowPassCutoff
+    );
+    bool should_use_simd_for_pitch_filter();
 }
 #endif
 
@@ -576,24 +586,54 @@ autoPitch Sound_to_Pitch_filteredAc (Sound me,
 		autoSound thee = Data_copy (me);
 		if (my ny == 1) {
 			autoSpectrum spec = Sound_to_Spectrum (me, true);
-			for (integer ibin = 1; ibin <= spec -> nx; ibin ++) {
-				const double frequency = Sampled_indexToX (spec.get(), ibin);
-				const double factor = exp (-0.5 * sqr (frequency / lowPassCutoffFrequency));
-				spec -> z [1] [ibin] *= factor;
-				spec -> z [2] [ibin] *= factor;
-			}
-			autoSound him = Spectrum_to_Sound (spec.get());
-			thy z.row (1)  <<=  his z.row (1).part (1, thy nx);
-		} else {
-			for (integer ichan = 1; ichan <= my ny; ichan ++) {
-				autoSound channel = Sound_extractChannel (me, ichan);
-				autoSpectrum spec = Sound_to_Spectrum (channel.get(), true);
+#ifdef HAVE_XSIMD
+			if (should_use_simd_for_pitch_filter()) {
+				// SIMD-accelerated spectrum attenuation (Phase 2.3)
+				autoVEC frequencies = raw_VEC (spec -> nx);
+				for (integer ibin = 1; ibin <= spec -> nx; ibin ++)
+					frequencies[ibin] = Sampled_indexToX (spec.get(), ibin);
+				apply_gaussian_lowpass_to_spectrum_simd_bridge(
+					spec -> z.row(1), spec -> z.row(2), frequencies.get(), lowPassCutoffFrequency
+				);
+			} else {
+#endif
+				// Scalar fallback
 				for (integer ibin = 1; ibin <= spec -> nx; ibin ++) {
 					const double frequency = Sampled_indexToX (spec.get(), ibin);
 					const double factor = exp (-0.5 * sqr (frequency / lowPassCutoffFrequency));
 					spec -> z [1] [ibin] *= factor;
 					spec -> z [2] [ibin] *= factor;
 				}
+#ifdef HAVE_XSIMD
+			}
+#endif
+			autoSound him = Spectrum_to_Sound (spec.get());
+			thy z.row (1)  <<=  his z.row (1).part (1, thy nx);
+		} else {
+			for (integer ichan = 1; ichan <= my ny; ichan ++) {
+				autoSound channel = Sound_extractChannel (me, ichan);
+				autoSpectrum spec = Sound_to_Spectrum (channel.get(), true);
+#ifdef HAVE_XSIMD
+				if (should_use_simd_for_pitch_filter()) {
+					// SIMD-accelerated spectrum attenuation (Phase 2.3)
+					autoVEC frequencies = raw_VEC (spec -> nx);
+					for (integer ibin = 1; ibin <= spec -> nx; ibin ++)
+						frequencies[ibin] = Sampled_indexToX (spec.get(), ibin);
+					apply_gaussian_lowpass_to_spectrum_simd_bridge(
+						spec -> z.row(1), spec -> z.row(2), frequencies.get(), lowPassCutoffFrequency
+					);
+				} else {
+#endif
+					// Scalar fallback
+					for (integer ibin = 1; ibin <= spec -> nx; ibin ++) {
+						const double frequency = Sampled_indexToX (spec.get(), ibin);
+						const double factor = exp (-0.5 * sqr (frequency / lowPassCutoffFrequency));
+						spec -> z [1] [ibin] *= factor;
+						spec -> z [2] [ibin] *= factor;
+					}
+#ifdef HAVE_XSIMD
+				}
+#endif
 				autoSound him = Spectrum_to_Sound (spec.get());
 				thy z.row (ichan)  <<=  his z.row (1).part (1, thy nx);
 			}
@@ -620,24 +660,54 @@ autoPitch Sound_to_Pitch_filteredCc (Sound me,
 		autoSound thee = Data_copy (me);
 		if (my ny == 1) {
 			autoSpectrum spec = Sound_to_Spectrum (me, true);
-			for (integer ibin = 1; ibin <= spec -> nx; ibin ++) {
-				const double frequency = Sampled_indexToX (spec.get(), ibin);
-				const double factor = exp (-0.5 * sqr (frequency / lowPassCutoffFrequency));
-				spec -> z [1] [ibin] *= factor;
-				spec -> z [2] [ibin] *= factor;
-			}
-			autoSound him = Spectrum_to_Sound (spec.get());
-			thy z.row (1)  <<=  his z.row (1).part (1, thy nx);
-		} else {
-			for (integer ichan = 1; ichan <= my ny; ichan ++) {
-				autoSound channel = Sound_extractChannel (me, ichan);
-				autoSpectrum spec = Sound_to_Spectrum (channel.get(), true);
+#ifdef HAVE_XSIMD
+			if (should_use_simd_for_pitch_filter()) {
+				// SIMD-accelerated spectrum attenuation (Phase 2.3)
+				autoVEC frequencies = raw_VEC (spec -> nx);
+				for (integer ibin = 1; ibin <= spec -> nx; ibin ++)
+					frequencies[ibin] = Sampled_indexToX (spec.get(), ibin);
+				apply_gaussian_lowpass_to_spectrum_simd_bridge(
+					spec -> z.row(1), spec -> z.row(2), frequencies.get(), lowPassCutoffFrequency
+				);
+			} else {
+#endif
+				// Scalar fallback
 				for (integer ibin = 1; ibin <= spec -> nx; ibin ++) {
 					const double frequency = Sampled_indexToX (spec.get(), ibin);
 					const double factor = exp (-0.5 * sqr (frequency / lowPassCutoffFrequency));
 					spec -> z [1] [ibin] *= factor;
 					spec -> z [2] [ibin] *= factor;
 				}
+#ifdef HAVE_XSIMD
+			}
+#endif
+			autoSound him = Spectrum_to_Sound (spec.get());
+			thy z.row (1)  <<=  his z.row (1).part (1, thy nx);
+		} else {
+			for (integer ichan = 1; ichan <= my ny; ichan ++) {
+				autoSound channel = Sound_extractChannel (me, ichan);
+				autoSpectrum spec = Sound_to_Spectrum (channel.get(), true);
+#ifdef HAVE_XSIMD
+				if (should_use_simd_for_pitch_filter()) {
+					// SIMD-accelerated spectrum attenuation (Phase 2.3)
+					autoVEC frequencies = raw_VEC (spec -> nx);
+					for (integer ibin = 1; ibin <= spec -> nx; ibin ++)
+						frequencies[ibin] = Sampled_indexToX (spec.get(), ibin);
+					apply_gaussian_lowpass_to_spectrum_simd_bridge(
+						spec -> z.row(1), spec -> z.row(2), frequencies.get(), lowPassCutoffFrequency
+					);
+				} else {
+#endif
+					// Scalar fallback
+					for (integer ibin = 1; ibin <= spec -> nx; ibin ++) {
+						const double frequency = Sampled_indexToX (spec.get(), ibin);
+						const double factor = exp (-0.5 * sqr (frequency / lowPassCutoffFrequency));
+						spec -> z [1] [ibin] *= factor;
+						spec -> z [2] [ibin] *= factor;
+					}
+#ifdef HAVE_XSIMD
+				}
+#endif
 				autoSound him = Spectrum_to_Sound (spec.get());
 				thy z.row (ichan)  <<=  his z.row (1).part (1, thy nx);
 			}
