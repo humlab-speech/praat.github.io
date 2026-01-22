@@ -31,6 +31,19 @@ extern "C" void compute_window_simd_bridge(VEC const& window, kSound_to_Spectrog
 extern bool should_use_simd_for_windowing();
 #endif
 
+// SIMD Phase 2.1: Spectrogram generation optimization
+#ifdef HAVE_XSIMD
+extern "C" void extract_and_window_frame_simd_bridge(
+    constVEC const& signal, autoVEC const& window, autoVEC const& output,
+    integer startSample, integer nsamp_window);
+extern "C" void accumulate_power_spectrum_simd_bridge(
+    autoVEC const& data, autoVEC const& spectrum,
+    integer half_nsampFFT, integer nsampFFT);
+extern "C" void zero_fft_tail_simd_bridge(
+    autoVEC const& data, integer start_index, integer nsampFFT);
+extern "C" bool should_use_simd_for_spectrogram();
+#endif
+
 autoSpectrogram Sound_to_Spectrogram_e (
 	const constSound me,
 	const double effectiveAnalysisWidth,
@@ -158,10 +171,24 @@ autoSpectrogram Sound_to_Spectrogram_e (
 				Averaging starts by adding up the powers of the channels.
 			*/
 			for (integer channel = 1; channel <= my ny; channel ++) {
-				for (integer j = 1, i = startSample; j <= nsamp_window; j ++)
-					data [j] = my z [channel] [i ++] * window [j];
-				for (integer j = nsamp_window + 1; j <= nsampFFT; j ++)
-					data [j] = 0.0;
+#ifdef HAVE_XSIMD
+				if (should_use_simd_for_spectrogram()) {
+					// SIMD: Extract frame and apply window in one pass
+					extract_and_window_frame_simd_bridge(
+						my z.row(channel), window, data,
+						startSample, nsamp_window);
+					// SIMD: Zero-fill FFT tail
+					zero_fft_tail_simd_bridge(data, nsamp_window + 1, nsampFFT);
+				} else {
+#endif
+					// Scalar fallback
+					for (integer j = 1, i = startSample; j <= nsamp_window; j ++)
+						data [j] = my z [channel] [i ++] * window [j];
+					for (integer j = nsamp_window + 1; j <= nsampFFT; j ++)
+						data [j] = 0.0;
+#ifdef HAVE_XSIMD
+				}
+#endif
 
 				if (MelderThread_IS_MASTER) {   // then we can interact with the GUI
 					const double estimatedProgress = MelderThread_ESTIMATED_PROGRESS;
@@ -180,10 +207,21 @@ autoSpectrogram Sound_to_Spectrogram_e (
 					Convert from complex to power spectrum,
 					accumulating the power spectra of the channels.
 				*/
-				spectrum [1] += data [1] * data [1];   // DC component
-				for (integer i = 2; i <= half_nsampFFT; i ++)
-					spectrum [i] += data [i + i - 2] * data [i + i - 2] + data [i + i - 1] * data [i + i - 1];
-				spectrum [half_nsampFFT + 1] += data [nsampFFT] * data [nsampFFT];   // Nyquist frequency. Correct??
+#ifdef HAVE_XSIMD
+				if (should_use_simd_for_spectrogram()) {
+					// SIMD: Accumulate power spectrum from complex FFT output
+					accumulate_power_spectrum_simd_bridge(data, spectrum,
+					                                       half_nsampFFT, nsampFFT);
+				} else {
+#endif
+					// Scalar fallback
+					spectrum [1] += data [1] * data [1];   // DC component
+					for (integer i = 2; i <= half_nsampFFT; i ++)
+						spectrum [i] += data [i + i - 2] * data [i + i - 2] + data [i + i - 1] * data [i + i - 1];
+					spectrum [half_nsampFFT + 1] += data [nsampFFT] * data [nsampFFT];   // Nyquist frequency. Correct??
+#ifdef HAVE_XSIMD
+				}
+#endif
 			}
 			/*
 				Power averaging ends by dividing the summed power by the number of channels,
