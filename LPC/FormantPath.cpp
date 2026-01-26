@@ -47,6 +47,30 @@
 #include "oo_DESCRIPTION.h"
 #include "FormantPath_def.h"
 
+// Forward declarations from formantpath_simd.cpp (Phase 4.1 SIMD optimization)
+extern "C" {
+    bool should_use_simd_for_formantpath();
+    void compute_qsums_simd_bridge(
+        const double* frequencies, const double* bandwidths,
+        integer numberOfCandidates, integer maxFormants,
+        const integer* formantCounts, double* qsums
+    );
+    double find_min_with_position_simd_bridge(
+        const double* values, integer n, integer* out_minPos
+    );
+    double compute_frequency_change_cost_simd_bridge(
+        const double* freqs_i, const double* freqs_j,
+        const double* bws_i, const double* bws_j,
+        integer ntracks, double frequencyChangeWeight, double transitionCostCutoff
+    );
+    void compute_static_costs_simd_bridge(
+        const double* stresses, const double* qsums, const double* intensities,
+        integer numberOfCandidates, double stressWeight, double qWeight,
+        double stressCutoff, double qCutoff, double* delta
+    );
+    integer find_max_position_simd_bridge(const double* values, integer n);
+}
+
 void FormantPath_getCandidateAtTime (FormantPath me, double time, double *out_tmin, double *out_tmax, integer *out_candidate) {
 	IntervalTier intervalTier = static_cast <IntervalTier> (my path -> tiers -> at [1]);
 	const integer index = IntervalTier_timeToIndex (intervalTier, time);	
@@ -215,35 +239,74 @@ autoINTVEC FormantPath_getOptimumPath (FormantPath me, double qWeight, double fr
 				       (or should we measure the costs w.r.t the middle frequency?)
 		*/
 		const double ceilingsRange = my ceilings [numberOfCandidates] - my ceilings [1];
+		const bool useSIMD = should_use_simd_for_formantpath();
+		/*
+			SIMD optimization (Phase 4.1): Pre-allocate arrays for SIMD frequency change cost computation
+		*/
+		autoVEC freqs_i, bws_i, freqs_j, bws_j;
+		if (useSIMD && frequencyChangeWeight > 0.0) {
+			freqs_i = raw_VEC (maxnFormants);
+			bws_i = raw_VEC (maxnFormants);
+			freqs_j = raw_VEC (maxnFormants);
+			bws_j = raw_VEC (maxnFormants);
+		}
 		for (integer itime = 2; itime <= my nx; itime ++) {
 			for (integer iformant = 1; iformant <= numberOfCandidates; iformant++) {
 				const Formant_Frame ffi = & my formantCandidates.at [iformant] -> frames [itime];
 				const integer numberOfTracks_i = std::min (numberOfTracks, ffi -> numberOfFormants);
 				double deltamin = 1e100;
 				integer minPos = 0;
+				/*
+					SIMD optimization: Extract current candidate's frequencies/bandwidths once
+				*/
+				if (useSIMD && frequencyChangeWeight > 0.0 && numberOfTracks_i > 0) {
+					for (integer itrack = 1; itrack <= numberOfTracks_i; itrack++) {
+						freqs_i [itrack] = ffi -> formant [itrack]. frequency;
+						bws_i [itrack] = ffi -> formant [itrack]. bandwidth;
+					}
+				}
 				for (integer jformant = 1; jformant <= numberOfCandidates; jformant++) {
 					const Formant_Frame ffj = & my formantCandidates.at [jformant] -> frames [itime - 1];
 					const integer ntracks = std::min (ffj -> numberOfFormants, numberOfTracks_i);
 					double transitionCosts = delta [jformant] [itime - 1];
-					if (frequencyChangeWeight > 0.0) {
+					if (frequencyChangeWeight > 0.0 && ntracks > 0) {
 						double fcost = 0.0;
-						for (integer itrack = 1; itrack <= ntracks; itrack ++) {
-							const double fi = ffi -> formant [itrack]. frequency, fj = ffj -> formant [itrack]. frequency;
-							if (transtionCostType == 1) {
-								const double dif = fabs (fi  - fj);
-								const double sum = fi  + fj;
-								const double bw = sqrt (ffi -> formant [itrack]. bandwidth * ffj -> formant [itrack]. bandwidth);
-								fcost += bw * dif / sum;
-							} else
-								fcost += fabs (NUMlog2 (fi / fj));
+						if (useSIMD && transtionCostType == 1) {
+							/*
+								SIMD path: Extract previous candidate's data and use SIMD
+							*/
+							for (integer itrack = 1; itrack <= ntracks; itrack++) {
+								freqs_j [itrack] = ffj -> formant [itrack]. frequency;
+								bws_j [itrack] = ffj -> formant [itrack]. bandwidth;
+							}
+							fcost = compute_frequency_change_cost_simd_bridge (
+								& freqs_i [1], & freqs_j [1],
+								& bws_i [1], & bws_j [1],
+								ntracks, 1.0, 1.0  // weight=1, cutoff=1 (we apply them below)
+							);
+							transitionCosts += frequencyChangeWeight * std::min (fcost / transitionCostCuttoff, 1.0);
+						} else {
+							/*
+								Scalar path (original algorithm)
+							*/
+							for (integer itrack = 1; itrack <= ntracks; itrack ++) {
+								const double fi = ffi -> formant [itrack]. frequency, fj = ffj -> formant [itrack]. frequency;
+								if (transtionCostType == 1) {
+									const double dif = fabs (fi  - fj);
+									const double sum = fi  + fj;
+									const double bw = sqrt (ffi -> formant [itrack]. bandwidth * ffj -> formant [itrack]. bandwidth);
+									fcost += bw * dif / sum;
+								} else
+									fcost += fabs (NUMlog2 (fi / fj));
+							}
+							fcost /= ntracks;
+							transitionCosts += frequencyChangeWeight * std::min (fcost / transitionCostCuttoff, 1.0);
 						}
-						fcost /= ntracks;
-						transitionCosts += frequencyChangeWeight * std::min (fcost / transitionCostCuttoff, 1.0);
 					}
 					if (ceilingChangeWeight > 0.0) {
 						const double ceilingChangeCosts = fabs (my ceilings [iformant] - my ceilings [jformant]) / ceilingsRange;
 						transitionCosts += ceilingChangeWeight * ceilingChangeCosts;
-					}				
+					}
 					if (transitionCosts < deltamin) {
 						deltamin = transitionCosts;
 						minPos = jformant;
