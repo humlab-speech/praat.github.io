@@ -43,14 +43,9 @@ extern bool should_use_simd_for_formants();
 static void burg (constVEC samples, VEC coefficients,
 	Formant_Frame frame, double nyquistFrequency, double safetyMargin)
 {
-#ifdef HAVE_XSIMD
-	// SIMD-accelerated Burg's algorithm (Phase 1.3)
-	double a0 = ( should_use_simd_for_formants() ?
-	              VECburg_simd_bridge (coefficients, samples) :
-	              VECburg (coefficients, samples) );
-#else
+	// VECburg now has SIMD acceleration built-in for inner loops (NUM2.cpp)
+	// The separate SIMD Burg (burg_simd) was removed due to algorithmic differences
 	double a0 = VECburg (coefficients, samples);
-#endif
 	(void) a0;
 	/*
 		Convert LP coefficients to polynomial.

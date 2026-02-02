@@ -18,6 +18,10 @@
 
 #include "melder.h"
 
+#ifdef HAVE_XSIMD
+#include <xsimd/xsimd.hpp>
+#endif
+
 /*
 	Local functions.
 */
@@ -287,9 +291,47 @@ double NUMcenterOfGravity (constVECVU const& x) noexcept {
 	return double (weightedSumOfIndexes / sumOfWeights);
 }
 
+#ifdef HAVE_XSIMD
+static double NUMinner_simd (constVECVU const& x, constVECVU const& y) noexcept {
+	/*
+		SIMD-accelerated inner product for stride-1 vectors.
+		Uses FMA for better accuracy and accumulates in SIMD registers.
+	*/
+	using batch = xsimd::batch<double>;
+	constexpr size_t simd_size = batch::size;
+
+	const double *px = x.firstCell;
+	const double *py = y.firstCell;
+	const integer n = x.size;
+
+	longdouble total = 0.0;
+	integer i = 0;
+
+	// Process SIMD batches with FMA accumulation
+	batch acc(0.0);
+	for (; i + static_cast<integer>(simd_size) <= n; i += simd_size) {
+		batch xv = xsimd::load_unaligned(&px[i]);
+		batch yv = xsimd::load_unaligned(&py[i]);
+		acc = xsimd::fma(xv, yv, acc);
+	}
+	total = (longdouble) xsimd::reduce_add(acc);
+
+	// Scalar remainder with longdouble precision
+	for (; i < n; i ++)
+		total += (longdouble) px[i] * (longdouble) py[i];
+
+	return (double) total;
+}
+#endif
+
 double NUMinner (constVECVU const& x, constVECVU const& y) noexcept {
 	if (x.stride == 1) {
 		if (y.stride == 1) {
+#ifdef HAVE_XSIMD
+			// Use SIMD for sufficiently large stride-1 vectors
+			if (x.size >= 16)
+				return NUMinner_simd(x, y);
+#endif
 			PAIRWISE_SUM (longdouble, sum, integer, x.size,
 				const double *px = x. firstCell;
 				const double *py = y. firstCell,

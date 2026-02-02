@@ -1525,33 +1525,44 @@ double VECburg (VEC const& a, constVEC const& x) {
 			
 #ifdef HAVE_XSIMD
 			// SIMD-accelerated prediction error update (Phase 1.3)
+			// Fixed: use temp buffer to preserve original b1 values for b2 computation
+			// The scalar loop reads b1[j+1] BEFORE it's modified; SIMD must preserve this
 			using batch = xsimd::batch<double>;
 			constexpr size_t simd_size = batch::size;
-			
-			batch aa_i(aa[i]);
+			const batch aa_i_batch(aa[i]);
+			const integer limit = n - i - 1;
+
+			// Temp buffer for new b2 values (preserves original b1 for computation)
+			autoVEC b2_new_temp = raw_VEC(limit);
+
 			integer j = 1;
-			
-			// SIMD loop
-			for (; j + static_cast<integer>(simd_size) <= n - i - 1; j += simd_size) {
-				batch b1_curr = xsimd::load_unaligned(&b1[j]);
-				batch b2_curr = xsimd::load_unaligned(&b2[j]);
-				batch b2_next = xsimd::load_unaligned(&b2[j + 1]);
-				batch b1_next = xsimd::load_unaligned(&b1[j + 1]);
-				
-				// b1[j] -= aa[i] * b2[j]
-				b1_curr = b1_curr - aa_i * b2_curr;
-				b1_curr.store_unaligned(&b1[j]);
-				
-				// b2[j] = b2[j+1] - aa[i] * b1[j+1]
-				batch b2_new = b2_next - aa_i * b1_next;
-				b2_new.store_unaligned(&b2[j]);
+			// SIMD loop: compute b1 and b2 using ORIGINAL values
+			for (; j + static_cast<integer>(simd_size) <= limit; j += simd_size) {
+				// Load ORIGINAL values before any modification
+				batch b1_j = xsimd::load_unaligned(&b1[j]);
+				batch b2_j = xsimd::load_unaligned(&b2[j]);
+				batch b2_jp1 = xsimd::load_unaligned(&b2[j + 1]);
+				batch b1_jp1 = xsimd::load_unaligned(&b1[j + 1]);  // Original!
+
+				// Compute new values
+				batch b1_new = b1_j - aa_i_batch * b2_j;
+				batch b2_new = b2_jp1 - aa_i_batch * b1_jp1;
+
+				// Store b1 immediately, b2 to temp
+				b1_new.store_unaligned(&b1[j]);
+				b2_new.store_unaligned(&b2_new_temp[j]);
 			}
-			
+
 			// Scalar remainder
-			for (; j <= n - i - 1; j ++) {
-				b1 [j] -= aa [i] * b2 [j];
-				b2 [j] = b2 [j + 1] - aa [i] * b1 [j + 1];
+			for (; j <= limit; j ++) {
+				double b1_jp1_orig = b1[j + 1];
+				b1[j] -= aa[i] * b2[j];
+				b2_new_temp[j] = b2[j + 1] - aa[i] * b1_jp1_orig;
 			}
+
+			// Copy temp back to b2
+			for (j = 1; j <= limit; j ++)
+				b2[j] = b2_new_temp[j];
 #else
 			// Scalar fallback
 			for (integer j = 1; j <= n - i - 1; j ++) {
