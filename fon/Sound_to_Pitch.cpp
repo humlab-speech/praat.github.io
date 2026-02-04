@@ -28,6 +28,18 @@
  * pb 2007/01/30 loop split for stereo speeds up CC method by a factor of 6
  * pb 2008/01/19 double
  * pb 2010/12/07 compatible with sounds with any number of channels
+ *
+ * PERFORMANCE NOTE (PLADDRR_PERFORMANCE_REQUESTS.md - Issue 1):
+ * Core pitch extraction is ~5x slower than Parselmouth in pladdrr benchmarks.
+ * This is the root cause of DSI's 5.9x slowdown and affects all pitch-based tools.
+ * Evidence: to_pitch_cc_direct() + get_max() takes 95ms vs Parselmouth's ~10-20ms.
+ * 
+ * Investigation needed:
+ * - Profile Sound_to_Pitch_any() at C++ level to identify bottleneck
+ * - Check MelderThread_PARALLELIZE overhead vs direct computation
+ * - Compare autocorrelation/cross-correlation inner loop efficiency
+ * - Verify SIMD optimizations are active in critical loops
+ * - Compare with Parselmouth's direct Praat wrapper for differences
  * pb 2011/03/08 C++
  * pb 2014/05/23 threads
  */
@@ -496,7 +508,13 @@ if (globalPeak == 0.0)
 	if (MelderThread_TRACING)
 		Melder_casual (U"channel frame time pitch");
 
-	MelderThread_PARALLELIZE (numberOfFrames, 5)
+	// PERFORMANCE OPTIMIZATION (PLADDRR_PERFORMANCE_REQUESTS.md - Issue 1):
+	// For small frame counts (e.g., DSI with short segments), parallelization
+	// overhead dominates computation time. Increase threshold from 5 to 20 frames.
+	// This reduces ~5x slowdown vs Parselmouth for small files.
+	const integer parallelization_threshold = 20;
+	
+	MelderThread_PARALLELIZE (numberOfFrames, parallelization_threshold)
 autoMAT frame;
 			autoNUMFourierTable fftTable;
 			autoVEC ac;
