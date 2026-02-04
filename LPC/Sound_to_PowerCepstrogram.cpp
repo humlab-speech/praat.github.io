@@ -24,6 +24,35 @@
 #include "Sound_to_PowerCepstrogram.h"
 #include "SoundFrameIntoSampledFrame.h"   // needed only for getPhysicalAnalysisWidth2; TODO: move that function into the right location
 
+// SIMD optimization for PowerCepstrogram (v4.8.10 - CPPS optimization)
+#ifdef HAVE_XSIMD
+extern "C" {
+	bool should_use_simd_for_powercepstrogram();
+	void extract_frame_simd(
+		const double* input_signal,
+		double* output_frame,
+		integer start_sample,
+		integer frame_size,
+		integer input_nx
+	);
+	void window_multiply_inplace_simd(
+		double* frame,
+		const double* window,
+		integer frame_size
+	);
+	void compute_log_power_spectrum_simd(
+		double* fourier_samples,
+		integer num_fourier_samples
+	);
+	void compute_final_power_simd(
+		const double* fourier_samples,
+		double* power_cepstrum,
+		integer nx,
+		double df
+	);
+}
+#endif
+
 static void Sound_into_PowerCepstrogram (constSound input, mutablePowerCepstrogram output, double effectiveAnalysisWidth, kSound_windowShape windowShape) {
 	SampledIntoSampled_assertEqualDomains (input, output);
 	constexpr integer thresholdNumberOfFramesPerThread = 40;
@@ -72,12 +101,36 @@ static void Sound_into_PowerCepstrogram (constSound input, mutablePowerCepstrogr
 		const double midTime = Sampled_indexToX (output, iframe);
 		integer soundFrameBegin = Sampled_xToNearestIndex (input, midTime - 0.5 * physicalAnalysisWidth);   // approximation
 
-		for (integer isample = 1; isample <= soundFrame.size; isample ++, soundFrameBegin ++)
-			soundFrame [isample] = ( soundFrameBegin > 0 && soundFrameBegin <= input -> nx ? input -> z [1] [soundFrameBegin] : 0.0 );
+		// SIMD optimization: Frame extraction with boundary handling (v4.8.10)
+#ifdef HAVE_XSIMD
+		if (should_use_simd_for_powercepstrogram() && soundFrame.size >= 8) {
+			const double* input_ptr = &input -> z [1] [1];
+			double* frame_ptr = &soundFrame [1];
+			extract_frame_simd(input_ptr - 1, frame_ptr - 1, 
+			                   soundFrameBegin, soundFrame.size, input -> nx);
+		} else
+#endif
+		{
+			// Original scalar code
+			for (integer isample = 1; isample <= soundFrame.size; isample ++, soundFrameBegin ++)
+				soundFrame [isample] = ( soundFrameBegin > 0 && soundFrameBegin <= input -> nx ? input -> z [1] [soundFrameBegin] : 0.0 );
+		}
+
 		if (subtractFrameMean)
 			centre_VEC_inout (soundFrame, nullptr);
 		//const double soundFrameExtremum = NUMextremum_u (soundFrame);   // not used
-		soundFrame  *=  windowFunction.get();
+
+		// SIMD optimization: Window multiplication (v4.8.10)
+#ifdef HAVE_XSIMD
+		if (should_use_simd_for_powercepstrogram() && soundFrame.size >= 8) {
+			double* frame_ptr = &soundFrame [1];
+			const double* window_ptr = &windowFunction [1];
+			window_multiply_inplace_simd(frame_ptr - 1, window_ptr - 1, soundFrame.size);
+		} else
+#endif
+		{
+			soundFrame  *=  windowFunction.get();
+		}
 
 		const integer numberOfChannels = frameAsSound -> ny;
 		if (numberOfChannels == 1)
@@ -124,22 +177,46 @@ static void Sound_into_PowerCepstrogram (constSound input, mutablePowerCepstrogr
 
 		/*
 			step 2: log of the spectrum power values log (re * re + im * im)
+			SIMD optimization: Log power spectrum - PRIMARY OPTIMIZATION TARGET (v4.8.10)
 		*/
-		fourierSamples [1] = log (fourierSamples [1] * fourierSamples [1] + 1e-300);
-		for (integer i = 1; i < numberOfFourierSamples / 2; i ++) {
-			const double re = fourierSamples [2 * i], im = fourierSamples [2 * i + 1];
-			fourierSamples [2 * i] = log (re * re + im * im + 1e-300);
-			fourierSamples [2 * i + 1] = 0.0;
+#ifdef HAVE_XSIMD
+		if (should_use_simd_for_powercepstrogram() && numberOfFourierSamples >= 16) {
+			double* fourier_ptr = &fourierSamples [1];
+			compute_log_power_spectrum_simd(fourier_ptr - 1, numberOfFourierSamples);
+		} else
+#endif
+		{
+			// Original scalar code
+			fourierSamples [1] = log (fourierSamples [1] * fourierSamples [1] + 1e-300);
+			for (integer i = 1; i < numberOfFourierSamples / 2; i ++) {
+				const double re = fourierSamples [2 * i], im = fourierSamples [2 * i + 1];
+				fourierSamples [2 * i] = log (re * re + im * im + 1e-300);
+				fourierSamples [2 * i + 1] = 0.0;
+			}
+			fourierSamples [numberOfFourierSamples] = log (fourierSamples [numberOfFourierSamples] * fourierSamples [numberOfFourierSamples] + 1e-300);
 		}
-		fourierSamples [numberOfFourierSamples] = log (fourierSamples [numberOfFourierSamples] * fourierSamples [numberOfFourierSamples] + 1e-300);
 		/*
 			Step 3: inverse fft of the log spectrum
 		*/
 		NUMfft_backward (fourierTable.get(), fourierSamples.get());
 		const double df = 1.0 / (frameAsSound -> dx * numberOfFourierSamples);
-		for (integer i = 1; i <= powerCepstrum -> nx; i ++) {
-			const double val = fourierSamples [i] * df;
-			powerCepstrum -> z [1] [i] = val * val;
+
+		// SIMD optimization: Final power cepstrum calculation (v4.8.10)
+#ifdef HAVE_XSIMD
+		if (should_use_simd_for_powercepstrogram() && powerCepstrum -> nx >= 8) {
+			const double* fourier_ptr = &fourierSamples [1];
+			double* output_ptr = &powerCepstrum -> z [1] [1];
+			compute_final_power_simd(fourier_ptr - 1, 
+			                         output_ptr - 1,
+			                         powerCepstrum -> nx, df);
+		} else
+#endif
+		{
+			// Original scalar code
+			for (integer i = 1; i <= powerCepstrum -> nx; i ++) {
+				const double val = fourierSamples [i] * df;
+				powerCepstrum -> z [1] [i] = val * val;
+			}
 		}
 
 		output -> z.column (iframe)  <<=  powerCepstrum -> z.row (1);
