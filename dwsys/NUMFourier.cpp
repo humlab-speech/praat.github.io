@@ -37,8 +37,9 @@
 #include "oo_DESCRIPTION.h"
 #include "NUMFourierTable_def.h"
 
-#define FFT_DATA_TYPE double
-#include "NUMfft_core.h"
+#define POCKETFFT_NO_MULTITHREADING
+#define POCKETFFT_CACHE_SIZE 16
+#include "pocketfft_hdronly.h"
 
 Thing_implement (NUMFourierTable, Daata, 0);
 
@@ -46,12 +47,12 @@ autoNUMFourierTable NUMFourierTable_create (integer n) {
 	try {
 		autoNUMFourierTable me = Thing_new (NUMFourierTable);
 		my n = n;
-		my trigcacheSize = 3 * n;
-		my trigcache = zero_VEC (my trigcacheSize);
-		my splitcacheSize = 32;
-		my splitcache = zero_INTVEC (my splitcacheSize);
-		NUMrffti (n, my trigcache.asArgumentToFunctionThatExpectsZeroBasedArray(),
-			my splitcache.asArgumentToFunctionThatExpectsZeroBasedArray());
+		/*
+			pocketfft manages its own plans internally, so trigcache/splitcache
+			are no longer needed. Keep minimal allocations for struct compatibility.
+		*/
+		my trigcacheSize = 0;
+		my splitcacheSize = 0;
 		return me;
 	} catch (MelderError) {
 		Melder_throw (U"Cannot create NUMFourierTable.");
@@ -90,22 +91,26 @@ void NUMfft_forward (NUMFourierTable me, VEC data) {
 	if (my n == 1)
 		return;
 	Melder_assert (my n == data.size);
-	drftf1 (my n, data.asArgumentToFunctionThatExpectsZeroBasedArray(),
-		my trigcache.asArgumentToFunctionThatExpectsZeroBasedArray(),
-		my trigcache.asArgumentToFunctionThatExpectsZeroBasedArray() + my n,
-		my splitcache.asArgumentToFunctionThatExpectsZeroBasedArray()
-	);
+	size_t n = (size_t) my n;
+	pocketfft::shape_t shape{n};
+	pocketfft::stride_t stride{(ptrdiff_t)sizeof(double)};
+	pocketfft::shape_t axes{0};
+	double *ptr = data.asArgumentToFunctionThatExpectsZeroBasedArray();
+	pocketfft::r2r_fftpack(shape, stride, stride, axes,
+		true, true, ptr, ptr, 1.0);
 }
 
 void NUMfft_backward (NUMFourierTable me, VEC data) {
 	if (my n == 1)
 		return;
 	Melder_assert (my n == data.size);
-	drftb1 (my n, data.asArgumentToFunctionThatExpectsZeroBasedArray(),
-		my trigcache.asArgumentToFunctionThatExpectsZeroBasedArray(),
-		my trigcache.asArgumentToFunctionThatExpectsZeroBasedArray() + my n,
-		my splitcache.asArgumentToFunctionThatExpectsZeroBasedArray()
-	);
+	size_t n = (size_t) my n;
+	pocketfft::shape_t shape{n};
+	pocketfft::stride_t stride{(ptrdiff_t)sizeof(double)};
+	pocketfft::shape_t axes{0};
+	double *ptr = data.asArgumentToFunctionThatExpectsZeroBasedArray();
+	pocketfft::r2r_fftpack(shape, stride, stride, axes,
+		false, false, ptr, ptr, 1.0);
 }
 
 void NUMrealft (VEC data, integer isign) {
