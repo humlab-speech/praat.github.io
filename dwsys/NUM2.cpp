@@ -69,6 +69,7 @@
 // SIMD optimization support (Phase 1.3)
 #ifdef HAVE_XSIMD
 #include <xsimd/xsimd.hpp>
+#include "../../../xsimd_compat.h"
 #endif
 
 #include "gsl_randist.h"
@@ -1470,7 +1471,7 @@ double VECburg (VEC const& a, constVEC const& x) {
 		
 #ifdef HAVE_XSIMD
 		// SIMD-accelerated Burg reflection coefficient computation (Phase 1.3)
-		using batch = xsimd::batch<double>;
+		using batch = XSIMD_BATCH(double);
 		constexpr size_t simd_size = batch::size;
 		
 		batch num_batch(0.0), denum_batch(0.0);
@@ -1486,8 +1487,8 @@ double VECburg (VEC const& a, constVEC const& x) {
 			denum_batch = xsimd::fma(b2_batch, b2_batch, denum_batch);
 		}
 		
-		num += xsimd::reduce_add(num_batch);
-		denum += xsimd::reduce_add(denum_batch);
+		num += xsimd_compat::reduce_add_compat(num_batch);
+		denum += xsimd_compat::reduce_add_compat(denum_batch);
 		
 		// Scalar remainder
 		for (; j <= n - i; j ++) {
@@ -1527,7 +1528,7 @@ double VECburg (VEC const& a, constVEC const& x) {
 			// SIMD-accelerated prediction error update (Phase 1.3)
 			// Fixed: use temp buffer to preserve original b1 values for b2 computation
 			// The scalar loop reads b1[j+1] BEFORE it's modified; SIMD must preserve this
-			using batch = xsimd::batch<double>;
+			using batch = XSIMD_BATCH(double);
 			constexpr size_t simd_size = batch::size;
 			const batch aa_i_batch(aa[i]);
 			const integer limit = n - i - 1;

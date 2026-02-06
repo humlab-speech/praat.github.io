@@ -20,6 +20,7 @@
 
 #ifdef HAVE_XSIMD
 #include <xsimd/xsimd.hpp>
+#include "../../../xsimd_compat.h"
 #endif
 
 /*
@@ -297,7 +298,7 @@ static double NUMinner_simd (constVECVU const& x, constVECVU const& y) noexcept 
 		SIMD-accelerated inner product for stride-1 vectors.
 		Uses FMA for better accuracy and accumulates in SIMD registers.
 	*/
-	using batch = xsimd::batch<double>;
+	using batch = XSIMD_BATCH(double);
 	constexpr size_t simd_size = batch::size;
 
 	const double *px = x.firstCell;
@@ -314,7 +315,7 @@ static double NUMinner_simd (constVECVU const& x, constVECVU const& y) noexcept 
 		batch yv = xsimd::load_unaligned(&py[i]);
 		acc = xsimd::fma(xv, yv, acc);
 	}
-	total = (longdouble) xsimd::reduce_add(acc);
+	total = (longdouble) xsimd_compat::reduce_add_compat(acc);
 
 	// Scalar remainder with longdouble precision
 	for (; i < n; i ++)

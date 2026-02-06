@@ -36,6 +36,7 @@
 // SIMD optimization support (Phase 1.2)
 #ifdef HAVE_XSIMD
 #include <xsimd/xsimd.hpp>
+#include "../../../xsimd_compat.h"
 #endif
 
 static autoIntensity Sound_to_Intensity_ (Sound me, double pitchFloor, double timeStep, bool subtractMeanPressure) {
@@ -115,7 +116,7 @@ static autoIntensity Sound_to_Intensity_ (Sound me, double pitchFloor, double ti
 				
 #ifdef HAVE_XSIMD
 				// SIMD-accelerated RMS computation (Phase 1.2)
-				using batch = xsimd::batch<double>;
+				using batch = XSIMD_BATCH(double);
 				constexpr size_t simd_size = batch::size;
 				
 				batch acc_xw(0.0), acc_w(0.0);
@@ -132,8 +133,8 @@ static autoIntensity Sound_to_Intensity_ (Sound me, double pitchFloor, double ti
 					acc_w += win;
 				}
 				
-				sumxw += xsimd::reduce_add(acc_xw);
-				sumw += xsimd::reduce_add(acc_w);
+				sumxw += xsimd_compat::reduce_add_compat(acc_xw);
+				sumw += xsimd_compat::reduce_add_compat(acc_w);
 				
 				// Scalar remainder
 				for (; isamp <= amplitudePart.size; isamp ++) {
