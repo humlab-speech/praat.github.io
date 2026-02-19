@@ -27,6 +27,15 @@
 #include "Sound_to_Harmonicity.h"
 #include "Sound_and_LPC.h"
 #include "Sound_and_Spectrum.h"
+#include <vector>
+#include <utility>
+
+/*
+ * pladdrr performance enhancements (2026-02-19):
+ *   - Loop B: 50-band Hilbert envelope computation parallelized via MelderThread
+ *   - Loop C: 1225-pair cross-correlation matrix parallelized via MelderThread
+ *   Both loops are embarrassingly parallel (independent reads, distinct writes).
+ */
 
 static void bandFilter (Spectrum me, double fmid, double bandwidth) {
 	double *re = & my z [1] [0], *im = & my z [2] [0];
@@ -86,62 +95,53 @@ autoMatrix Sound_to_Harmonicity_GNE (Sound me,
 			hilbertSpectrum -> z [1] [col] = flatSpectrum -> z [2] [col];
 			hilbertSpectrum -> z [2] [col] = - flatSpectrum -> z [1] [col];
 		}
-		double fmid = fmin;
-		integer ienvelope = 1;
-		autoMelderMonitor monitor (U"Computing Hilbert envelopes...");
-		while (fmid <= fmax) {
-			/*
-			 * Step 3: calculate Hilbert envelopes of bands.
-			 */
+		/*
+		 * Step 3 (parallelized): compute Hilbert envelopes for all bands independently.
+		 * Each band ienvelope uses a distinct fmid and writes exclusively to envelope[ienvelope].
+		 * Read-only inputs: flatSpectrum, hilbertSpectrum, duration, fmin, bandwidth, step.
+		 */
+		MelderThread_PARALLELIZE (nenvelopes, 1)
+		MelderThread_FOR (ienvelope) {
+			const double fmid_local = fmin + (ienvelope - 1) * step;
 			autoSpectrum bandSpectrum = Data_copy (flatSpectrum.get());
 			autoSpectrum hilbertBandSpectrum = Data_copy (hilbertSpectrum.get());
-			/*
-			 * 3a: Filter both the spectrum of the original flat sound and its Hilbert transform.
-			 */
-			bandFilter (bandSpectrum.get(), fmid, bandwidth);
-			bandFilter (hilbertBandSpectrum.get(), fmid, bandwidth);
-			/*
-			 * 3b: Create both the band-filtered flat sound and its Hilbert transform.
-			 */
+			bandFilter (bandSpectrum.get(), fmid_local, bandwidth);
+			bandFilter (hilbertBandSpectrum.get(), fmid_local, bandwidth);
 			autoSound band = Spectrum_to_Sound (bandSpectrum.get());
-			/*if (graphics) {
-				Graphics_beginMovieFrame (graphics, & Melder_WHITE);
-				Spectrum_draw (bandSpectrum, graphics, 0, 5000, 0, 0, true);
-				Graphics_endMovieFrame (graphics, 0.0);
-			}*/
-			Melder_monitor (ienvelope / (nenvelopes + 1.0), U"Computing Hilbert envelope ", ienvelope, U"...");
 			autoSound hilbertBand = Spectrum_to_Sound (hilbertBandSpectrum.get());
 			envelope [ienvelope] = Sound_extractPart (band.get(), 0, duration, kSound_windowShape::RECTANGULAR, 1.0, true);
-			/*
-			 * 3c: Compute the Hilbert envelope of the band-passed flat signal.
-			 */
 			for (integer col = 1; col <= envelope [ienvelope] -> nx; col ++) {
 				double self = envelope [ienvelope] -> z [1] [col], other = hilbertBand -> z [1] [col];
 				envelope [ienvelope] -> z [1] [col] = hypot (self, other);
 			}
 			Vector_subtractMean (envelope [ienvelope].get());
-			/*
-			 * Next band.
-			 */
-			fmid += step;
-			ienvelope += 1;
-		}
+		} MelderThread_ENDFOR
 
 		/*
-		 * Step 4: crosscorrelation
+		 * Step 4 (parallelized): cross-correlation matrix.
+		 * Flatten upper-triangle pairs into a linear array so MelderThread can distribute them.
+		 * Each pair writes to a distinct cc->z[row][col] cell — no contention.
 		 */
-		nenvelopes = ienvelope - 1;
+		nenvelopes = (integer) Melder_ifloor ((fmax - fmin) / step);
 		autoMatrix cc = Matrix_createSimple (nenvelopes, nenvelopes);
-		for (integer row = 2; row <= nenvelopes; row ++) {
-			for (integer col = 1; col <= row - 1; col ++) {
-				autoSound crossCorrelation = Sounds_crossCorrelate_short (envelope [row].get(), envelope [col].get(), -3.1e-4, 3.1e-4, true);
-				/*
-				 * Step 5: the maximum of each correlation function
-				 */
-				double ccmax = Vector_getMaximum (crossCorrelation.get(), 0.0, 0.0, kVector_peakInterpolation :: NONE);
-				cc -> z [row] [col] = ccmax;
-			}
-		}
+
+		std::vector<std::pair<integer,integer>> pairs;
+		pairs.reserve ((integer)(nenvelopes * (nenvelopes - 1) / 2));
+		for (integer row = 2; row <= nenvelopes; row ++)
+			for (integer col = 1; col <= row - 1; col ++)
+				pairs.push_back ({row, col});
+
+		const integer npairs = (integer) pairs.size ();
+		MelderThread_PARALLELIZE (npairs, 5)
+		MelderThread_FOR (ipair) {
+			const integer row = pairs [(size_t) (ipair - 1)].first;
+			const integer col = pairs [(size_t) (ipair - 1)].second;
+			autoSound crossCorrelation = Sounds_crossCorrelate_short (envelope [row].get(), envelope [col].get(), -3.1e-4, 3.1e-4, true);
+			/*
+			 * Step 5: the maximum of each correlation function
+			 */
+			cc -> z [row] [col] = Vector_getMaximum (crossCorrelation.get(), 0.0, 0.0, kVector_peakInterpolation :: NONE);
+		} MelderThread_ENDFOR
 
 		/*
 		 * Step 6: maximum of the maxima, ignoring those too close to the diagonal.
