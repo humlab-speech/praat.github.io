@@ -162,47 +162,6 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 		}
 		longdouble sumy2 = sumx2;   // at zero lag, these are still equal
 		r [0] = 1.0;
-#ifdef HAVE_XSIMD
-		{
-			// Fix 5 (batched sqrt): accumulate sumy2 and product for all lags, then
-			// vectorized normalization pass — eliminates localMaximumLag sqrt() calls.
-			autoVEC sumy2_arr  = raw_VEC (localMaximumLag);
-			autoVEC product_arr = raw_VEC (localMaximumLag);
-
-			// Pass 1: accumulate sumy2[i] and product[i] for every lag
-			for (integer i = 1; i <= localMaximumLag; i ++) {
-				longdouble product = 0.0;
-				for (integer channel = 1; channel <= my ny; channel ++) {
-					const double *const amp = & my z [channel] [0] + offset;
-					const double y0 = amp [i] - localMean [channel];
-					const double yZ = amp [i + nsamp_window] - localMean [channel];
-					sumy2 += yZ * yZ - y0 * y0;
-					simd_bridge_direct::compute_fcc_product_simd (
-						amp, localMean [channel], i, nsamp_window, product);
-				}
-				sumy2_arr  [i] = (double) sumy2;
-				product_arr [i] = (double) product;
-			}
-
-			// Pass 2: vectorized normalization  r[i] = product[i] / sqrt(sumx2 * sumy2[i])
-			const double sumx2_d = (double) sumx2;
-			using batch_t = XSIMD_BATCH(double);
-			constexpr std::size_t simd_w = batch_t::size;
-			integer i = 1;
-			for (; i + (integer)simd_w - 1 <= localMaximumLag; i += (integer)simd_w) {
-				auto sy2 = xsimd::load_unaligned (& sumy2_arr  [i]);
-				auto pr  = xsimd::load_unaligned (& product_arr [i]);
-				auto result = pr / xsimd::sqrt (sumx2_d * sy2);
-				xsimd::store_unaligned (& r [i], result);
-				for (std::size_t k = 0; k < simd_w; k ++)
-					r [- (i + (integer)k)] = r [i + (integer)k];
-			}
-			// scalar tail
-			for (; i <= localMaximumLag; i ++) {
-				r [- i] = r [i] = product_arr [i] / sqrt (sumx2_d * sumy2_arr [i]);
-			}
-		}
-#else
 		for (integer i = 1; i <= localMaximumLag; i ++) {
 			longdouble product = 0.0;
 			for (integer channel = 1; channel <= my ny; channel ++) {
@@ -218,7 +177,6 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 			}
 			r [- i] = r [i] = (double) product / sqrt ((double) sumx2 * (double) sumy2);
 		}
-#endif
 	} else {
 
 	/*
@@ -229,18 +187,11 @@ static void Sound_into_PitchFrame (Sound me, Pitch_Frame pitchFrame, double t,
 	for (integer channel = 1; channel <= my ny; channel ++) {
 		NUMfft_forward (fftTable, VEC (& frame [channel] [1], fftTable->n));   // complex spectrum
 		
-#ifdef HAVE_XSIMD
-		// SIMD-accelerated power spectrum accumulation (Phase 1.1)
-		// This replaces the scalar loops below for better performance
-		simd_bridge_direct::accumulate_power_spectrum_simd(frame, ac, nsampFFT, my ny);
-	}
-#else
 		ac [1] += frame [channel] [1] * frame [channel] [1];   // DC component
 		for (integer i = 2; i < nsampFFT; i += 2)
 			ac [i] += frame [channel] [i] * frame [channel] [i] + frame [channel] [i+1] * frame [channel] [i+1];   // power spectrum
 		ac [nsampFFT] += frame [channel] [nsampFFT] * frame [channel] [nsampFFT];   // Nyquist frequency
 	}
-#endif
 	NUMfft_backward (fftTable, ac);   // autocorrelation
 
 		// DEBUG POINT 3: Check autocorrelation values after FFT

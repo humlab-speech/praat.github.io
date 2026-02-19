@@ -100,7 +100,7 @@ autoMatrix Sound_to_Harmonicity_GNE (Sound me,
 		 * Each band ienvelope uses a distinct fmid and writes exclusively to envelope[ienvelope].
 		 * Read-only inputs: flatSpectrum, hilbertSpectrum, duration, fmin, bandwidth, step.
 		 */
-		MelderThread_PARALLELIZE (nenvelopes, 1)
+		MelderThread_PARALLELIZE (nenvelopes, 4)
 		MelderThread_FOR (ienvelope) {
 			const double fmid_local = fmin + (ienvelope - 1) * step;
 			autoSpectrum bandSpectrum = Data_copy (flatSpectrum.get());
