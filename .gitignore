@@ -35,3 +35,4 @@ Praat.app
 .Rdata
 .Rhistory
 .Rproj.user
+*.tmp
