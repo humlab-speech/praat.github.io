@@ -72,7 +72,7 @@ autoSPINET Sound_to_SPINET (Sound me, double timeStep, double windowDuration, do
 			const double gammaMaxAmplitude = pow ((thy gamma - 1) / (NUMe * bw [i]), thy gamma - 1);
 			const double timeCorrection = tgammaMax - windowDuration / 2.0;
 
-			autoSound gammaTone = Sound_createGammaTone (0.0, 0.1, samplingFrequency, thy gamma, b, f [i], 0.0, 0.0, false);
+			autoSound gammaTone = Sound_createGammaTone (0.0, 0.1, samplingFrequency, thy gamma, f [i], bw [i] / NUM2pi, 0.0, 0.0, false);
 			autoSound filtered = Sounds_convolve (me, gammaTone.get(), kSounds_convolve_scaling::SUM, kSounds_convolve_signalOutsideTimeDomain::ZERO);
 			/*
 				To energy measure: weigh with broad-band transfer function.
