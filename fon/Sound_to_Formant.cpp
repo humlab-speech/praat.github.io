@@ -32,6 +32,7 @@
 #include "NUM2.h"
 #include "Polynomial.h"
 #include "Roots.h"
+#include "../../polynomial_roots_laguerre.h"
 
 // SIMD Phase 1.3: Formant extraction optimization
 #ifdef HAVE_XSIMD
@@ -57,8 +58,32 @@ static void burg (constVEC samples, VEC coefficients,
 
 	/*
 		Find the roots of the polynomial.
+		Primary: LAPACK dhseqr_ via Polynomial_to_Roots.
+		Fallback: Laguerre's method when dhseqr_ drops eigenvalues on short windows.
 	 */
 	autoRoots roots = Polynomial_to_Roots (polynomial.get());
+	if (roots -> numberOfRoots < coefficients.size) {
+		/*
+			dhseqr_ failed to converge on all eigenvalues (ill-conditioned Hessenberg
+			matrix, typical for short windows ≤100ms). Retry with Laguerre's method
+			which is robust to this conditioning problem.
+		*/
+		integer order = coefficients.size;
+		std::vector<std::complex<double>> poly_coeffs (order + 1);
+		for (integer i = 1; i <= order; i ++)
+			poly_coeffs [i - 1] = { polynomial -> coefficients [i], 0.0 };
+		poly_coeffs [order] = { polynomial -> coefficients [order + 1], 0.0 };
+
+		std::vector<std::complex<double>> laguerre_roots (order);
+		polynomial_roots_laguerre (poly_coeffs, laguerre_roots.data(), (int)order);
+
+		roots = Roots_create (order);
+		for (integer i = 1; i <= order; i ++) {
+			roots -> roots [i].real (laguerre_roots [i - 1].real());
+			roots -> roots [i].imag (laguerre_roots [i - 1].imag());
+		}
+		Roots_Polynomial_polish (roots.get(), polynomial.get());
+	}
 	Roots_fixIntoUnitCircle (roots.get());
 
 	Melder_assert (frame -> numberOfFormants == 0 && NUMisEmpty (frame -> formant.get()));
