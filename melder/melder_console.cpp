@@ -129,6 +129,14 @@ void MelderConsole::write (conststring32 message, bool useStderr) {
 	if (! message)
 		return;
 	FILE *f = useStderr ? Melder_stderr : Melder_stdout;
+	// pladdrr: in the embedded (no-GUI) context the lazy init that assigns these
+	// globals may never run, leaving f == nullptr; a casual message from a
+	// (possibly worker-thread) DSP routine then hits fputc(NULL) -> flockfile(0x68)
+	// segfault. Fall back to the real libc streams. See PRAAT_MODIFICATIONS.md.
+	if (! f)
+		f = useStderr ? stderr : stdout;
+	if (! f)
+		return;
 	if (MelderConsole :: encoding == Encoding::UTF16) {
 		#if defined (_WIN32)
 			fflush (f);
