@@ -88,14 +88,16 @@ void Melder_flushError (const Arg... arg) {
 
 void Melder_setErrorProc (void (*p_errorProc) (conststring32));
 
-void Melder_fatal_ (const MelderArg&,
+[[noreturn]] void Melder_fatal_ (const MelderArg&,   // pladdrr: always throws MelderError
 	const MelderArg& = U"", const MelderArg& = U"", const MelderArg& = U"",
 	const MelderArg& = U"", const MelderArg& = U"", const MelderArg& = U"",
 	const MelderArg& = U"", const MelderArg& = U"", const MelderArg& = U"",
 	const MelderArg& = U"", const MelderArg& = U"", const MelderArg& = U""
 );
 
-#define Melder_fatal(...)  do { Melder_fatal_ (__VA_ARGS__); abort (); } while (0)
+// pladdrr: dropped the trailing abort() (CRAN forbids abort); Melder_fatal_ is
+// [[noreturn]] and throws MelderError, caught at the R boundary.
+#define Melder_fatal(...)  do { Melder_fatal_ (__VA_ARGS__); } while (0)
 
 void Melder_setCrashProc (void (*p_crashProc) (conststring32));
 

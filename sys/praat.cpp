@@ -639,10 +639,18 @@ static void praat_exit (int exit_code) {
 			constexpr bool thereAreNoOtherSideEffectsBesideNotCallingExitDestructorsAndNotFlushingOpenFiles = (true);
 			if ((thereAreNoOtherSideEffectsBesideNotCallingExitDestructorsAndNotFlushingOpenFiles)) {}
 		}
+#ifndef PRAAT_LIB
 		_Exit (exit_code);
 	} else {
 		exit (exit_code);
 	}
+#else
+		/* pladdrr: never terminate the host R process from the embedded library
+		   (CRAN forbids _exit/exit); throw so control returns to the R boundary. */
+		(void) exit_code;
+		Melder_throw (U"Praat: quit requested (ignored in the embedded library).");
+	}
+#endif
 }
 
 static void cb_Editor_destruction (Editor me) {

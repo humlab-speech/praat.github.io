@@ -29,12 +29,14 @@
 /*
 	Private function implemented in Melder_fatal.cpp
 */
-void Melder_assert_ (const char *fileName, int lineNumber, const char *condition);
+[[noreturn]] void Melder_assert_ (const char *fileName, int lineNumber, const char *condition);   // pladdrr: always throws MelderError
 
 #ifdef NDEBUG
 	#define Melder_assert(x)   ((void) 0)
 #else
-	#define Melder_assert(x)   ((x) ? (void) (0) : (Melder_assert_ (__FILE__, __LINE__, #x), abort ()))
+	// pladdrr: dropped the trailing abort() (CRAN forbids abort in packages);
+	// Melder_assert_ is [[noreturn]] and throws MelderError, caught at the R boundary.
+	#define Melder_assert(x)   ((x) ? (void) (0) : Melder_assert_ (__FILE__, __LINE__, #x))
 #endif
 
 /* End of file melder_assert.h */
