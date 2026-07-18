@@ -2406,6 +2406,7 @@ void praat_run () {
 		Check some assumptions about non-argument-evaluation during void tracing,
 		and about the order of argument evaluation.
 	*/
+#ifndef PRAAT_LIB   /* pladdrr: this startup self-test uses unsequenced ++i/i++ (UB, -Wunsequenced); it is Praat-app diagnostic code, not needed in the embedded library */
 	{
 		//TRACE
 		int i = 0;
@@ -2450,6 +2451,7 @@ void praat_run () {
 			in any function call, even for the recursive templates of our own devising.
 		 */
 	}
+#endif   /* PRAAT_LIB */
 
 	if (Melder_batch) {
 		if (thePraatStandAloneScriptText) {

@@ -132,6 +132,7 @@ void PitchTier_shiftFrequencies (PitchTier me, double tmin, double tmax, double 
 					if (frequency <= 0.0)
 						Melder_throw (U"The resulting frequency has to be greater than 0 ERB.");
 					frequency = NUMerbToHertz (frequency);
+				} break; default: {   /* pladdrr: silence -Wswitch; unsupported units leave the frequency unchanged (as before) */
 				}
 			}
 			point -> value = frequency;
