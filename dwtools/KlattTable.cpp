@@ -644,7 +644,7 @@ static void KlattFrame_flutter (KlattGlobal me) {
 static double KlattGlobal_gen_noise (KlattGlobal me) {
 	static double nlast = 0.0;
 
-	my nrand = ( (rand() % (int) ( ( (8191) + 1) - (-8191))) + (-8191));
+	my nrand = NUMrandomInteger (-8191, 8191);
 	double noise = my nrand + (0.75 * nlast);
 	nlast = noise;
 

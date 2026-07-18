@@ -99,30 +99,30 @@ const char * Melder8_bigInteger (int64 value) {
 	const int units =         value;
 	bool firstDigitPrinted = false;
 	if (quintillions) {
-		sprintf (text + strlen (text), firstDigitPrinted ? "%03d," : "%d,", quintillions);
+		snprintf (text + strlen (text), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (text), firstDigitPrinted ? "%03d," : "%d,", quintillions);
 		firstDigitPrinted = true;
 	}
 	if (quadrillions || firstDigitPrinted) {
-		sprintf (text + strlen (text), firstDigitPrinted ? "%03d," : "%d,", quadrillions);
+		snprintf (text + strlen (text), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (text), firstDigitPrinted ? "%03d," : "%d,", quadrillions);
 		firstDigitPrinted = true;
 	}
 	if (trillions || firstDigitPrinted) {
-		sprintf (text + strlen (text), firstDigitPrinted ? "%03d," : "%d,", trillions);
+		snprintf (text + strlen (text), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (text), firstDigitPrinted ? "%03d," : "%d,", trillions);
 		firstDigitPrinted = true;
 	}
 	if (billions || firstDigitPrinted) {
-		sprintf (text + strlen (text), firstDigitPrinted ? "%03d," : "%d,", billions);
+		snprintf (text + strlen (text), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (text), firstDigitPrinted ? "%03d," : "%d,", billions);
 		firstDigitPrinted = true;
 	}
 	if (millions || firstDigitPrinted) {
-		sprintf (text + strlen (text), firstDigitPrinted ? "%03d," : "%d,", millions);
+		snprintf (text + strlen (text), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (text), firstDigitPrinted ? "%03d," : "%d,", millions);
 		firstDigitPrinted = true;
 	}
 	if (thousands || firstDigitPrinted) {
-		sprintf (text + strlen (text), firstDigitPrinted ? "%03d," : "%d,", thousands);
+		snprintf (text + strlen (text), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (text), firstDigitPrinted ? "%03d," : "%d,", thousands);
 		firstDigitPrinted = true;
 	}
-	sprintf (text + strlen (text), firstDigitPrinted ? "%03d" : "%d", units);
+	snprintf (text + strlen (text), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (text), firstDigitPrinted ? "%03d" : "%d", units);
 	return text;
 }
 conststring32 Melder_bigInteger (int64 value) {
@@ -319,11 +319,11 @@ const char * Melder8_dcomplex (dcomplex value) {
 	*p = ( value.imag() < 0.0 ? '-' : '+' );
 	value. imag (fabs (value.imag()));
 	++ p;
-	sprintf (p, "%.15g", value.imag());
+	snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.15g", value.imag());
 	if (strtod (p, nullptr) != value.imag()) {
-		sprintf (p, "%.16g", value.imag());
+		snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.16g", value.imag());
 		if (strtod (p, nullptr) != value.imag())
-			sprintf (p, "%.17g", value.imag());
+			snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.17g", value.imag());
 	}
 	strcat (buffers8 [ibuffer], "i");
 	return buffers8 [ibuffer];
@@ -341,7 +341,8 @@ const char * Melder8_scomplex (dcomplex value) {
 	snprintf (buffers8 [ibuffer],MAXIMUM_NUMERIC_STRING_LENGTH+1, "%.9g", value.real());
 	char *p = buffers8 [ibuffer] + strlen (buffers8 [ibuffer]);
 	*p = ( value.imag() < 0.0 ? '-' : '+' );
-	sprintf (++ p, "%.9g", fabs (value.imag()));
+	p ++;
+	snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.9g", fabs (value.imag()));
 	strcat (buffers8 [ibuffer], "i");
 	return buffers8 [ibuffer];
 }
@@ -406,7 +407,7 @@ const char * Melder8_naturalLogarithm (double lnNumber) {
 			if (strtod (buffers8 [ibuffer], nullptr) != remainder10)
 				snprintf (buffers8 [ibuffer],MAXIMUM_NUMERIC_STRING_LENGTH+1, "%.17g", remainder10);
 		}
-		sprintf (buffers8 [ibuffer] + strlen (buffers8 [ibuffer]), "e-%td", ceiling);
+		snprintf (buffers8 [ibuffer] + strlen (buffers8 [ibuffer]), MAXIMUM_NUMERIC_STRING_LENGTH + 1 - strlen (buffers8 [ibuffer]), "e-%td", ceiling);
 	} else {
 		return Melder8_double (exp (lnNumber));
 	}
@@ -444,29 +445,29 @@ const char * Melder8_colour (MelderColour colour) {
 	char *p = & buffers8 [ibuffer] [0];
 	strcpy (p, "{");
 	p ++;
-	sprintf (p, "%.15g", colour.red);
+	snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.15g", colour.red);
 	if (strtod (p, nullptr) != colour.red) {
-		sprintf (p, "%.16g", colour.red);
+		snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.16g", colour.red);
 		if (strtod (p, nullptr) != colour.red)
-			sprintf (p, "%.17g", colour.red);
+			snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.17g", colour.red);
 	}
 	p += strlen (p);
 	strcpy (p, ",");
 	p ++;
-	sprintf (p, "%.15g", colour.green);
+	snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.15g", colour.green);
 	if (strtod (p, nullptr) != colour.green) {
-		sprintf (p, "%.16g", colour.green);
+		snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.16g", colour.green);
 		if (strtod (p, nullptr) != colour.green)
-			sprintf (p, "%.17g", colour.green);
+			snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.17g", colour.green);
 	}
 	p += strlen (p);
 	strcpy (p, ",");
 	p ++;
-	sprintf (p, "%.15g", colour.blue);
+	snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.15g", colour.blue);
 	if (strtod (p, nullptr) != colour.blue) {
-		sprintf (p, "%.16g", colour.blue);
+		snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.16g", colour.blue);
 		if (strtod (p, nullptr) != colour.blue)
-			sprintf (p, "%.17g", colour.blue);
+			snprintf (p, MAXIMUM_NUMERIC_STRING_LENGTH + 1 - (p - buffers8 [ibuffer]), "%.17g", colour.blue);
 	}
 	p += strlen (p);
 	strcpy (p, "}");

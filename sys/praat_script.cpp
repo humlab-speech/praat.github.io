@@ -507,7 +507,7 @@ void praat_executeCommandFromStandardInput (conststring32 programName) {
 		FIXME: implement for Windows.
 	*/
 	for (;;) {
-		printf ("%s > ", Melder_peek32to8 (programName));
+		Melder_casual (programName, U" > ");
 		if (! fgets (command8, 999, stdin))
 			Melder_throw (U"Cannot read input.");
 		char *newLine = strchr (command8, '\n');
