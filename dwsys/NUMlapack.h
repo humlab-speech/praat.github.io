@@ -20,9 +20,11 @@
 
 #include "melder.h"
 
-/* Use R's LAPACK instead of CLAPACK */
-#include <R_ext/BLAS.h>
-#include <R_ext/Lapack.h>
+/* R's LAPACK is reached only through the *_wrap_int functions implemented in
+   src/r_lapack_wrapper.cpp. R_ext/BLAS.h and R_ext/Lapack.h must NOT be
+   included here: since R-devel they unconditionally declare the Fortran
+   hidden character-length arguments, which conflicts with the CLAPACK-style
+   inline shims below that reuse the same dgeev_/dlamch_/... names. */
 
 /* Type alias for Praat's CLAPACK interface (integer is already defined in melder_int.h) */
 typedef double doublereal;

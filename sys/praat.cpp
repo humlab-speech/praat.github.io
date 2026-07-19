@@ -1881,7 +1881,7 @@ void praat_init (conststring32 title,
 	*/
 	#if defined (macintosh)
 		NSApplication *theApp = [GuiCocoaApplication sharedApplication];   // initialize, so that our bundle identifier exists even if we started from outside Xcode
-	#elif defined (_WIN32)
+	#elif defined (_WIN32) && ! defined (NO_GUI)
 		theWinApplicationWindow = GuiWin_initialize1 (Melder_upperCaseAppName());
 	#endif
 	if (praatP.userWantsExistingInstance)
@@ -1904,7 +1904,7 @@ void praat_init (conststring32 title,
 			}
 		}
 	#endif
-	#if defined (_WIN32)
+	#if defined (_WIN32) && ! defined (NO_GUI)
 		if (! Melder_batch)
 			motif_win_setUserMessageCallback (cb_userMessage);
 	#endif
