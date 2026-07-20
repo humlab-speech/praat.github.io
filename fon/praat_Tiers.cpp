@@ -391,8 +391,16 @@ static void cb_FormantGridEditor_publish (Editor /* me */, autoDaata publish) {
 }
 DIRECT (EDITOR_ONE_FormantGrid_edit) {
 	EDITOR_ONE (a,FormantGrid)
+	#if defined (NO_GUI)
+		/* Do not instantiate the header-inline FormantGridEditor_create here:
+		   its COMDAT collides with the library-mode stub at link time on
+		   COFF (mingw), and editors cannot be opened in library mode anyway. */
+		autoFormantGridEditor editor;   // for EDITOR_ONE_END; unreachable
+		Melder_throw (U"Cannot edit a FormantGrid in library mode.");
+	#else
 		autoFormantGridEditor editor = FormantGridEditor_create (ID_AND_FULL_NAME, me);
 		Editor_setPublicationCallback (editor.get(), cb_FormantGridEditor_publish);
+	#endif
 	EDITOR_ONE_END
 }
 
