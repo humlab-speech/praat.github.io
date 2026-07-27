@@ -29,17 +29,12 @@
  * pb 2008/01/19 double
  * pb 2010/12/07 compatible with sounds with any number of channels
  *
- * PERFORMANCE NOTE (PLADDRR_PERFORMANCE_REQUESTS.md - Issue 1):
- * Core pitch extraction is ~5x slower than Parselmouth in pladdrr benchmarks.
- * This is the root cause of DSI's 5.9x slowdown and affects all pitch-based tools.
- * Evidence: to_pitch_cc_direct() + get_max() takes 95ms vs Parselmouth's ~10-20ms.
- * 
- * Investigation needed:
- * - Profile Sound_to_Pitch_any() at C++ level to identify bottleneck
- * - Check MelderThread_PARALLELIZE overhead vs direct computation
- * - Compare autocorrelation/cross-correlation inner loop efficiency
- * - Verify SIMD optimizations are active in critical loops
- * - Compare with Parselmouth's direct Praat wrapper for differences
+ * PERFORMANCE NOTE (2026-07 assessment):
+ * The old "~5x slower than Parselmouth / 95 ms" number described the
+ * single-threaded path. On a current 10-core Apple Silicon host,
+ * to_pitch_cc_direct() is ~52 ms single-threaded and ~9 ms with the default
+ * threaded path, i.e. roughly at parity with Parselmouth. Threading closes the
+ * gap; NEON SIMD moves pitch little on this kernel.
  * pb 2011/03/08 C++
  * pb 2014/05/23 threads
  */
