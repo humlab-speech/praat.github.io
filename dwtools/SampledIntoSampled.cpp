@@ -34,7 +34,10 @@ void SampledIntoSampled_mt (SampledFrameIntoSampledFrame frameIntoFrame, integer
 		current -> copyBasic (frameIntoFrame);
 		current -> initHeap ();
 	MelderThread_FOR (iframe) {
-		if (MelderThread_IS_MASTER) {
+		if (MelderThread_IS_MASTER && ! Melder_batch) {
+			/* Melder_progress() formats a string (MelderString_copy) unconditionally,
+			 * even though _doProgress() is a no-op in batch mode. Skip the call
+			 * entirely when there is no display to update (pladdrr is always batch). */
 			const double estimatedProgress = MelderThread_ESTIMATED_PROGRESS;
 			Melder_progress (0.98 * estimatedProgress,
 				U"Analysed approximately ", Melder_iround (numberOfFrames * estimatedProgress),
