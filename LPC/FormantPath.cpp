@@ -579,8 +579,7 @@ void FormantPath_setPath (FormantPath me, double tmin, double tmax, integer sele
 		U"The candidate number should be between 1 and ", my formantCandidates.size, U".");
 	Function_unidirectionalAutowindow (me, & tmin, & tmax);
 	Function_intersectRangeWithDomain (me, & tmin, & tmax);
-	const double ceilingFrequency = my ceilings [selectedCandidate];
-	TextGrid_addInterval_force (my path.get(), tmin, tmax, 1, Melder_double (ceilingFrequency));
+	TextGrid_addInterval_force (my path.get(), tmin, tmax, 1, Melder_integer (selectedCandidate));
 }
 
 void FormantPath_setOptimalPath (FormantPath me, double tmin, double tmax, constINTVEC const& parameters, double powerf) {
