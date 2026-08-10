@@ -40,7 +40,10 @@
 #include "PitchTier_to_Sound.h"
 #include "PointEditor.h"
 #include "PointProcess_and_Sound.h"
-#include "Praat_tests.h"
+/* Praat_tests.h intentionally not included: pladdrr never compiles
+   Praat_tests.cpp (see below) — it's a Praat-internal debug/self-test
+   command that wrote raw fprintf(stderr,...) and was reachable from
+   arbitrary PraatInterpreter script text via praat_doMenuCommand(). */
 #include "Sound_and_Spectrogram.h"
 #include "Sound_and_Spectrum.h"
 #include "Sound_PointProcess.h"
@@ -2916,18 +2919,9 @@ DIRECT (NEW_Transition_to_Matrix) {
 
 // MARK: - Praat menu
 
-FORM (INFO_Praat_test, U"Praat test", 0) {
-	OPTIONMENU_ENUM (kPraatTests, test, U"Test", kPraatTests::DEFAULT)
-	SENTENCE (arg1, U"arg1", U"1000000")
-	SENTENCE (arg2, U"arg2", U"")
-	SENTENCE (arg3, U"arg3", U"")
-	SENTENCE (arg4, U"arg4", U"")
-	OK
-DO
-	INFO_NONE
-		Praat_tests ((kPraatTests) test, arg1, arg2, arg3, arg4);
-	INFO_NONE_END
-}
+/* INFO_Praat_test / Praat_tests removed for pladdrr: internal Praat
+   debug command, reachable from arbitrary PraatInterpreter script text
+   via praat_doMenuCommand(), that wrote raw fprintf(stderr,...). */
 
 // MARK: - Help menu
 
@@ -3068,7 +3062,7 @@ void praat_uvafon_init () {
 
 	structSpectrumEditor     :: f_preferences ();
 
-	praat_addMenuCommand (U"Objects", U"Technical", U"Praat test...", nullptr, 0, INFO_Praat_test);
+	/* "Praat test..." menu command intentionally not registered (see above). */
 
 	/*
 		The user interfaces for the classes are included in the order
