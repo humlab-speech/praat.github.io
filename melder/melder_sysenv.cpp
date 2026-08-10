@@ -67,6 +67,11 @@ static autostring32 runAny_STR (
 	conststring32 executableFileName, integer narg, char32 ** args,   // ... or these three
 	bool collectStdout
 ) {
+	// pladdrr: shell-exec (system/system$/runSystem/runSubprocess) disabled.
+	// Embedding an interpreter that can fork+exec arbitrary shell commands from
+	// R-supplied script text is a security liability CRAN would flag; Praat
+	// scripts run through pladdrr cannot shell out. See cran-comments.md.
+	Melder_throw (procedureMessageName, U": system commands are disabled in pladdrr.");
 	if (! command)
 		command = U"";
 	/*
