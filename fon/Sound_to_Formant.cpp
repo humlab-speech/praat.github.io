@@ -60,6 +60,22 @@ static void burg (constVEC samples, VEC coefficients,
 		Find the roots of the polynomial.
 		Primary: LAPACK dhseqr_ via Polynomial_to_Roots.
 		Fallback: Laguerre's method when dhseqr_ drops eigenvalues on short windows.
+
+		NOTE (pladdrr test-coverage-expansion, 2026-08-16): this fallback branch
+		fires only when LAPACK's dhseqr_ fails to converge on the LPC-coefficient
+		Hessenberg matrix built above — it is not selectable via any
+		to_formant_burg() argument (window_length / max_number_of_formants only
+		influence the matrix LAPACK is asked to solve, not whether it converges).
+		A build-time probe of ~650 to_formant_burg() combinations (silence,
+		clipping, near-periodic, extreme-dynamic-range signals x LPC orders 1-40
+		x window sizes from the LAPACK-legal minimum to 80ms) found zero triggers
+		on this platform's reference LAPACK (Rlapack, arm64). It may be reachable
+		on a different LAPACK implementation (e.g. OpenBLAS on Linux CI). This
+		branch is deliberately not covered by a fabricated ill-conditioned-matrix
+		test: doing so would test LAPACK's numerics rather than pladdrr's own
+		code, and risks the non-deterministic-test hazard this project has hit
+		before with other Praat numerical edge cases (see
+		praat-robust-slow-nondeterministic memory).
 	 */
 	autoRoots roots = Polynomial_to_Roots (polynomial.get());
 	if (roots -> numberOfRoots < coefficients.size) {
