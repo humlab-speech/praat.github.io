@@ -146,7 +146,7 @@ bool Melder_stringMatchesCriterion (conststring32 value, kMelder_string which, c
 			return !! place;
 		}
 	}
-	//return false;   // should not occur
+	return false;   // should not occur
 }
 
 /* End of file melder_search.cpp */

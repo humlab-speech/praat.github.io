@@ -633,7 +633,7 @@ autoMatrix Matrix_readFromRawTextFile (MelderFile file) {   // BUG: not Unicode-
 		rewind (f);
 		for (integer irow = 1; irow <= numberOfRows; irow ++)
 			for (integer icol = 1; icol <= numberOfColumns; icol ++)
-				fscanf (f, "%lf", & my z [irow] [icol]);
+				(void) fscanf (f, "%lf", & my z [irow] [icol]);
 
 		f.close (file);
 		return me;

@@ -439,7 +439,7 @@ static void Melder_checkAiffFile (FILE *f, integer *numberOfChannels, int *encod
 		/* START FIX OF FOREIGN BUG */
 		if(strnequ(chunkID,"NONE",4)&&
 			(chunkSize==(14<<24)+('n'<<16)+('o'<<8)+'t'||chunkSize==('t'<<24)+('o'<<16)+('n'<<8)+14))
-		{Melder_casual(U"Ha! a buggy SGI \"soundeditor\" file...");for(integer i=1;i<=20/*diff*/-8/*header*/;i++)fread(data,1,1,f);continue;}
+		{Melder_casual(U"Ha! a buggy SGI \"soundeditor\" file...");for(integer i=1;i<=20/*diff*/-8/*header*/;i++)(void) fread(data,1,1,f);continue;}
 		/* FINISH FIX OF FOREIGN BUG */
 		if (strnequ (chunkID, "COMM", 4)) {
 			/*
@@ -677,7 +677,7 @@ static void Melder_checkNextSunFile (FILE *f, integer *numberOfChannels, int *en
 	double *sampleRate, integer *startOfData, integer *numberOfSamples)
 {
 	char tag [4];
-	fread (tag, 1, 4, f);
+	(void) fread (tag, 1, 4, f);
 	if (strncmp (tag, ".snd", 4)) Melder_throw (U"Not a Sun audio file.");
 	*startOfData = bingeti32 (f);
 	if (*startOfData < 24 || *startOfData > 320)
@@ -2078,7 +2078,7 @@ void Melder_readAudioToShort (MelderFile file, integer numberOfChannels, int enc
 				break;
 			case Melder_LINEAR_16_BIG_ENDIAN:
 				static_assert (sizeof (short) == 2);
-				fread (buffer, sizeof (short), n, f);
+				(void) fread (buffer, sizeof (short), n, f);
 				if (* (uint8 *) & byteSwapTest == 1) {
 					for (integer i = 0; i < n; i ++) {
 						const uint16 value = (uint16) buffer [i];   // cast sign
@@ -2087,7 +2087,7 @@ void Melder_readAudioToShort (MelderFile file, integer numberOfChannels, int enc
 				}
 				break;
 			case Melder_LINEAR_16_LITTLE_ENDIAN:
-				fread (buffer, sizeof (short), n, f);
+				(void) fread (buffer, sizeof (short), n, f);
 				if (* (unsigned char *) & byteSwapTest == 3) {
 					for (integer i = 0; i < n; i ++) {
 						const uint16 value = (uint16) buffer [i];   // cast sign

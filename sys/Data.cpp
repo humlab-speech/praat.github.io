@@ -244,7 +244,7 @@ autoDaata Data_readFromBinaryFile (MelderFile file) {
 			me = Thing_newFromClassName (Melder_peek8to32 (line), nullptr).static_cast_move <structDaata>();
 			formatVersion = -1;   // old version: override version number, which was set to 0 by newFromClassName
 			rewind (f);
-			fread (line, 1, (size_t) (end - line) + strlen ("BinaryFile"), f);
+			(void) fread (line, 1, (size_t) (end - line) + strlen ("BinaryFile"), f);
 		}
 		MelderFile_getParentFolder (file, & Data_directoryBeingRead);
 		Data_readBinary (me.get(), f, formatVersion);
