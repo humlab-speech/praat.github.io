@@ -24,6 +24,7 @@
 #include "SVD.h"
 #include "Strings_extensions.h"
 #include "Sound_to_Formant_mt.h"
+#include "Sound_to_Formant.h"
 #include "Table_extensions.h"
 
 #include "oo_DESTROY.h"
@@ -1070,7 +1071,7 @@ autoFormant Sound_to_Formant_interval (Sound me, double startTime, double endTim
 		Melder_progressOff ();
 		for (integer istep = 1; istep <= numberOfFrequencySteps; istep ++) {
 			const double currentCeiling = minFreq + (istep - 1) * df;
-			autoFormant formant = Sound_to_Formant_burg_mt (resampled.get(), timeStep, 5.0, currentCeiling, windowLength, preemphasisFrequency, 50.0);
+			autoFormant formant = Sound_to_Formant_burg (resampled.get(), timeStep, 5.0, currentCeiling, windowLength, preemphasisFrequency);
 			autoFormantModeler fm = Formant_to_FormantModeler (formant.get(), startTime, endTime, noPararametersPerTrack.get());
 			//TODO FormantModeler_setFormantWeighting (me, weighFormants);
 			FormantModeler_setParameterValuesToZero (fm.get(), 1, numberOfFormantTracks, numberOfSigmas);

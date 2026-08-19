@@ -74,16 +74,16 @@ static void Sound_to_Formant_common (constSound inputSound, double& dt, double n
 		const double physicalAnalysisWidth = getPhysicalAnalysisWidth2 (effectiveAnalysisWidth, kSound_windowShape::GAUSSIAN_2);
 		integer numberOfFrames;
 		double t1;
-		Sampled_shortTermAnalysis (sound.get(), physicalAnalysisWidth, dt, & numberOfFrames, & t1);
+		Sampled_shortTermAnalysis (resampled.get(), physicalAnalysisWidth, dt, & numberOfFrames, & t1);
 		const integer numberOfFormants = ( safetyMargin == 0.0 ? numberOfPoles : (numberOfPoles + 1) / 2 );
-		autoFormant formant = Formant_create (sound -> xmin, sound -> xmax, numberOfFrames, dt, t1, numberOfFormants);
+		autoFormant formant = Formant_create (resampled -> xmin, resampled -> xmax, numberOfFrames, dt, t1, numberOfFormants);
 		for (integer iframe = 1; iframe <= numberOfFrames; iframe ++) {
 			Formant_Frame formantFrame = &formant -> frames [iframe];
 			Formant_Frame_init (formantFrame, numberOfFormants);
 		}
 		outputFormant = formant.move();
-		autoLPC lpc = LPC_createCompletelyInitialized (sound -> xmin, sound -> xmax, formant -> nx, formant -> dx,
-				formant -> x1, numberOfPoles, sound -> dx);
+		autoLPC lpc = LPC_createCompletelyInitialized (resampled -> xmin, resampled -> xmax, formant -> nx, formant -> dx,
+				formant -> x1, numberOfPoles, resampled -> dx);
 		outputLPC = lpc.move();
 		sound = resampled.move();
 	} catch (MelderError) {
