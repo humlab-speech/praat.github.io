@@ -5660,6 +5660,8 @@ static void do_empty_STRVEC () {
 	Melder_require (numberOfElements->which == Stackel_NUMBER,
 		U"The argument of the function “empty$#” should be a number (namely the number of elements), not ", numberOfElements->whichText(), U".");
 	autoSTRVEC result { Melder_iround (numberOfElements->number) };
+	for (integer i = 1; i <= result.size; i ++)
+		result.all() [i] = Melder_dup (U"");
 	pushStringVector (result.move());
 }
 static void do_readLinesFromFile_STRVEC () {
