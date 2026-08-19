@@ -901,7 +901,7 @@ void Melder_getCurrentFolder (MelderFolder folder) {
 
 void Melder_setCurrentFolder (MelderFolder folder) {
 	#if defined (UNIX)
-		(void) chdir (MelderFolder_peekPath8 (folder));
+		int chdirResult = chdir (MelderFolder_peekPath8 (folder)); (void) chdirResult;
 		str32cpy (theDefaultDir. path, folder -> path);
 	#elif defined (_WIN32)
 		SetCurrentDirectory (MelderFolder_peekPathW (folder));
