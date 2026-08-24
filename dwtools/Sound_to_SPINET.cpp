@@ -54,8 +54,14 @@ autoSPINET Sound_to_SPINET (Sound me, double timeStep, double windowDuration, do
 		autoSound frame = Sound_createSimple (1, windowDuration, samplingFrequency);
 		autoVEC f = raw_VEC (numberOfGammaFilters);
 		autoVEC bw = raw_VEC (numberOfGammaFilters);
-		autoVEC aex = raw_VEC (numberOfGammaFilters);
-		autoVEC ain = raw_VEC (numberOfGammaFilters);
+		// aex/ain are accumulated with += below; raw_VEC leaves them
+		// uninitialized, and garbage that happens to be NaN propagates through
+		// the on-center/off-surround division into every s[i][j] == 0.0, making
+		// SPINET_to_Pitch fail intermittently with "The sound should not have all
+		// amplitudes equal to zero." (upstream Praat has the same latent bug; the
+		// retry_once() test helper was masking it). zero_VEC fixes the UB.
+		autoVEC aex = zero_VEC (numberOfGammaFilters);
+		autoVEC ain = zero_VEC (numberOfGammaFilters);
 		/*
 			Cochlear filterbank: gammatone.
 		*/
