@@ -293,7 +293,7 @@ void Formant_getExtrema (Formant me, integer iformant, double tmin, double tmax,
 void Formant_getMinimumAndTime (Formant me, integer iformant, double tmin, double tmax, kFormant_unit unit, int interpolate,
 	double *return_minimum, double *return_timeOfMinimum)
 {
-	Sampled_getMinimumAndX (me, tmin, tmax, iformant << 1, (int) unit, interpolate, return_minimum, return_timeOfMinimum);
+	Sampled_getMinimumAndX (me, tmin, tmax, iformant * 2, (int) unit, interpolate, return_minimum, return_timeOfMinimum);
 	if (return_minimum && *return_minimum <= 0.0)
 		*return_minimum = undefined;
 }
@@ -313,7 +313,7 @@ double Formant_getTimeOfMinimum (Formant me, integer iformant, double tmin, doub
 void Formant_getMaximumAndTime (Formant me, integer iformant, double tmin, double tmax, kFormant_unit unit, int interpolate,
 	double *return_maximum, double *return_timeOfMaximum)
 {
-	Sampled_getMaximumAndX (me, tmin, tmax, iformant << 1, (int) unit, interpolate, return_maximum, return_timeOfMaximum);
+	Sampled_getMaximumAndX (me, tmin, tmax, iformant * 2, (int) unit, interpolate, return_maximum, return_timeOfMaximum);
 	if (return_maximum && *return_maximum <= 0.0)
 		*return_maximum = undefined;   // unlikely
 }
@@ -331,11 +331,11 @@ double Formant_getTimeOfMaximum (Formant me, integer iformant, double tmin, doub
 }
 
 double Formant_getQuantile (Formant me, integer iformant, double quantile, double tmin, double tmax, kFormant_unit unit) {
-	return Sampled_getQuantile (me, tmin, tmax, quantile, iformant << 1, (int) unit);
+	return Sampled_getQuantile (me, tmin, tmax, quantile, iformant * 2, (int) unit);
 }
 
 double Formant_getMean (Formant me, integer iformant, double tmin, double tmax, kFormant_unit unit) {
-	return Sampled_getMean (me, tmin, tmax, iformant << 1, (int) unit, true);
+	return Sampled_getMean (me, tmin, tmax, iformant * 2, (int) unit, true);
 }
 
 double Formant_getStandardDeviation (Formant me, integer iformant, double tmin, double tmax, kFormant_unit unit) {
@@ -366,15 +366,15 @@ double Formant_getStandardDeviation (Formant me, integer iformant, double tmin, 
 }
 
 double Formant_getValueAtTime (Formant me, integer iformant, double time, kFormant_unit unit) {
-	return Sampled_getValueAtX (me, time, iformant << 1, (int) unit, true);
+	return Sampled_getValueAtX (me, time, iformant * 2, (int) unit, true);
 }
 
 double Formant_getBandwidthAtTime (Formant me, integer iformant, double time, kFormant_unit unit) {
-	return Sampled_getValueAtX (me, time, (iformant << 1) + 1, (int) unit, true);
+	return Sampled_getValueAtX (me, time, (iformant * 2) + 1, (int) unit, true);
 }
 
 double Formant_getQuantileOfBandwidth (Formant me, integer iformant, double quantile, double tmin, double tmax, kFormant_unit unit) {
-	return Sampled_getQuantile (me, tmin, tmax, quantile, (iformant << 1) + 1, (int) unit);
+	return Sampled_getQuantile (me, tmin, tmax, quantile, (iformant * 2) + 1, (int) unit);
 }
 
 void Formant_scatterPlot (Formant me, Graphics g, double tmin, double tmax,
