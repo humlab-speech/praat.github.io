@@ -52,7 +52,8 @@ autoPowerCepstrum Spectrum_to_PowerCepstrum (Spectrum me) {
 autoSpectrum PowerCepstrum_to_Spectrum (PowerCepstrum me, bool randomPhases) {
 	try {
 		autoSound him = Sound_createSimple (1_integer, my xmax, 1.0 / my dx);
-		for (integer i = 1; i <= my nx; i ++)
+		const integer n = std::min (my nx, his nx);   // pladdrr: Sound_createSimple can yield fewer samples than my nx; clamp the copy so it cannot run past his z row (upstream Praat has the same latent OOB)
+		for (integer i = 1; i <= n; i ++)
 			his z [1] [i] = sqrt (my z [1] [i]);
 		const double mean = NUMmean (his z.row(1));
 		his z.row(1)  -=  mean;
