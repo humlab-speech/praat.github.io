@@ -152,7 +152,7 @@ autoSound ComplexSpectrogram_to_Sound (ComplexSpectrogram me, double stretchFact
 			const double tmid = Sampled_indexToX (me, iframe);
 			const integer leftSample = Sampled_xToLowIndex (thee.get(), tmid);
 			const integer rightSample = leftSample + 1;
-			const integer startSample = rightSample - halfnsamp_window;
+			const integer startSample = std::max (1_integer, rightSample - halfnsamp_window);
 			const integer endSample = std::min (startSample + nsamp_window - 1, thy nx);
 			
 			//const double startTime = Sampled_indexToX (thee.get(), startSample);
@@ -176,7 +176,15 @@ autoSound ComplexSpectrogram_to_Sound (ComplexSpectrogram me, double stretchFact
 			}
 			autoSound synthesis = Spectrum_to_Sound (spectrum.get());
 			
-			thy z.row (1).part (startSample, endSample)  +=  0.5 * synthesis -> z.row (1).part (1, nsamp_window);
+			// pladdrr: the += below loops over its right operand's length, and
+			// Spectrum_to_Sound can return a sound shorter than nsamp_window
+			// (odd original length), while part(startSample, endSample) is
+			// shorter than nsamp_window when a frame overhangs the sound.
+			// Clamp both sides to the common length so neither the read nor
+			// the write runs past its buffer (upstream Praat has the same
+			// latent OOB; exposed by the ComplexSpectrogram roundtrip test).
+			const integer n = std::min (endSample - startSample + 1, synthesis -> nx);
+			thy z.row (1).part (startSample, endSample).part (1, n)  +=  0.5 * synthesis -> z.row (1).part (1, n);
 		}
 		return thee;
 	} catch (MelderError) {
