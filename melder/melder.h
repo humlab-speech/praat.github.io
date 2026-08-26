@@ -36,6 +36,15 @@
 #include <mutex>
 #include <atomic>   // std::atomic<integer>
 
+/* pladdrr: disable FP contraction for the whole translation unit so the DSP
+   output stays bit-exact with the reference Praat application (previously
+   done with -ffp-contract=off in PKG_CXXFLAGS, which R CMD check flags as a
+   non-portable flag). melder.h is included by every Praat DSP translation
+   unit, so this pragma has the same coverage as the old global flag. */
+#if defined (__GNUC__) || defined (__clang__)
+	#pragma STDC FP_CONTRACT OFF
+#endif
+
 /*
 	Law of Demeter for class functions defined outside class definition.
 */
