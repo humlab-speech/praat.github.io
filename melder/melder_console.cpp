@@ -23,6 +23,9 @@
 	#include <io.h>
 	#include <assert.h>
 #endif
+#if defined (PRAAT_LIB)
+	#include <Rinterface.h>   // pladdrr: R_Outputfile / R_Consolefile
+#endif
 
 /*
 	MelderConsole is the interface through which Melder_casual writes to
@@ -69,7 +72,7 @@ FILE *Melder_stdout, *Melder_stderr;
 
 void MelderConsole_init () {
 	trace (U"init");
-	#if defined (_WIN32)
+	#if defined (_WIN32) && ! defined (PRAAT_LIB)
 		/*
 			Stdout and stderr are initialized automatically if we are redirected to a pipe or file.
 			Stdout and stderr are not initialized, however, if Praat is started from the console,
@@ -120,9 +123,19 @@ void MelderConsole_init () {
 		};
 	#endif
 	if (! Melder_stdout)
-		Melder_stdout = stdout;
+		#if defined (PRAAT_LIB)
+			// pladdrr: embedded in R — route console output through R's own
+			// streams (CRAN forbids referencing the libc stdout/stderr symbols).
+			Melder_stdout = R_Outputfile;
+		#else
+			Melder_stdout = stdout;
+		#endif
 	if (! Melder_stderr)
-		Melder_stderr = stderr;
+		#if defined (PRAAT_LIB)
+			Melder_stderr = R_Consolefile;   // may be NULL in batch mode
+		#else
+			Melder_stderr = stderr;
+		#endif
 }
 
 void MelderConsole::write (conststring32 message, bool useStderr) {
@@ -132,9 +145,15 @@ void MelderConsole::write (conststring32 message, bool useStderr) {
 	// pladdrr: in the embedded (no-GUI) context the lazy init that assigns these
 	// globals may never run, leaving f == nullptr; a casual message from a
 	// (possibly worker-thread) DSP routine then hits fputc(NULL) -> flockfile(0x68)
-	// segfault. Fall back to the real libc streams. See PRAAT_MODIFICATIONS.md.
+	// segfault. Fall back to R's console streams (CRAN forbids the libc streams).
 	if (! f)
-		f = useStderr ? stderr : stdout;
+		#if defined (PRAAT_LIB)
+			f = useStderr ? R_Consolefile : R_Outputfile;
+		#else
+			f = useStderr ? stderr : stdout;
+		#endif
+	if (! f)
+		return;   // pladdrr: R_Consolefile can be NULL in batch mode — drop the message
 	if (! f)
 		return;
 	if (MelderConsole :: encoding == Encoding::UTF16) {

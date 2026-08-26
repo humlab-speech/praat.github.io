@@ -47,6 +47,16 @@
 #include "InfoEditor.h"
 extern "C" char *sendpraat (void *display, const char *programName, long timeOut, const char *text);
 
+#if defined (PRAAT_LIB)
+	/* pladdrr: CRAN forbids calling exit() from compiled code (it can terminate R).
+	   The call sites below are in command-line/app-run paths the embedded library
+	   never executes, but they are still compiled; route them through Melder_throw
+	   so any accidental hit surfaces as an R error instead of killing R. */
+	#define PLADDRR_EXIT(code) Melder_throw (U"Praat: exit requested (ignored in the embedded library).")
+#else
+	#define PLADDRR_EXIT(code) exit (code)
+#endif
+
 Thing_implement (Praat_Command, Thing, 0);
 
 #define EDITOR  theCurrentPraatObjects -> list [IOBJECT]. editors
@@ -1021,7 +1031,12 @@ void praat_setStandAloneScriptText (conststring32 text) {
 static bool tryToAttachToTheCommandLine ()
 {
 	bool weHaveSucceeded = false;
-	#if defined (_WIN32)
+	#if defined (PRAAT_LIB)
+		// pladdrr: embedded in R — never a command-line app; also avoids the
+		// libc stdout/stderr symbols (CRAN forbids them in compiled code).
+		(void) weHaveSucceeded;
+		return false;
+	#elif defined (_WIN32)
 		/*
 		 * On Windows, console applications are automatically attached to the command line,
 		 * but Praat is always a Windows application instead, so command line attachment
@@ -1492,7 +1507,7 @@ static void interpretCommandLineArguments (bool weWereStartedFromTheCommandLine,
 		} else if (strequ (argv [praatP.argumentNumber], "--version")) {
 			Melder_information (Melder_upperCaseAppName(), U" ", Melder_appVersionSTR(),
 					U" (", Melder_appMonthSTR(), U" ", Melder_appDay(), U" ", Melder_appYear(), U")");
-			exit (0);
+			PLADDRR_EXIT (0);
 		} else if (strequ (argv [praatP.argumentNumber], "--trace")) {
 			Melder_setTracing (true);
 			praatP.argumentNumber += 1;
@@ -1503,7 +1518,7 @@ static void interpretCommandLineArguments (bool weWereStartedFromTheCommandLine,
 			MelderInfo_open ();
 			printHelp ();
 			MelderInfo_close ();
-			exit (0);
+			PLADDRR_EXIT (0);
 		} else if (strequ (argv [praatP.argumentNumber], "-8") || strequ (argv [praatP.argumentNumber], "--utf8")) {
 			MelderConsole::setEncoding (MelderConsole::Encoding::UTF8);
 			praatP.argumentNumber += 1;
@@ -1540,7 +1555,7 @@ static void interpretCommandLineArguments (bool weWereStartedFromTheCommandLine,
 			MelderInfo_writeLine (U"Unrecognized command line option ", Melder_peek8to32 (argv [praatP.argumentNumber]), U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 	}
 	const bool thereIsAFileNameInTheArgumentList = ( praatP.argumentNumber < argc );
@@ -1553,70 +1568,70 @@ static void interpretCommandLineArguments (bool weWereStartedFromTheCommandLine,
 		MelderInfo_writeLine (U"Conflicting command line switches --run and --open (or --new-open).", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheRunSwitch && praatP.foundTheSendSwitch) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"Conflicting command line switches --run and --send (or --new-send).", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheRunSwitch && praatP.foundTheSendOrFormSwitch) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"Conflicting command line switches --run and --send-or-form (or --new-send-or-form).", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheOpenSwitch && praatP.foundTheSendSwitch) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"Conflicting command line switches --open (or --new-open) and --send (or --new-send).", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheOpenSwitch && praatP.foundTheSendOrFormSwitch) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"Conflicting command line switches --open (or --new-open) and --send-or-form (or --new-send-or-form).", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheSendSwitch && praatP.foundTheSendOrFormSwitch) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"Conflicting command line switches --send (or --new-send) and --send-or-form (or --new-send-or-form).", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheRunSwitch && ! thereIsAFileNameInTheArgumentList) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"The switch --run requires a script file name.", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheSendSwitch && ! thereIsAFileNameInTheArgumentList) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"The switch --send requires a script file name.", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheSendOrFormSwitch && ! thereIsAFileNameInTheArgumentList) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"The switch --send-or-form requires a script file name.", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	if (praatP.foundTheOpenSwitch && ! thereIsAFileNameInTheArgumentList) {
 		MelderInfo_open ();
 		MelderInfo_writeLine (U"The switch --open requires at least one file name.", U"\n");
 		printHelp ();
 		MelderInfo_close ();
-		exit (-1);
+		PLADDRR_EXIT (-1);
 	}
 	Melder_batch =
 		! praatP.foundTheOpenSwitch &&
@@ -1663,35 +1678,35 @@ static void interpretCommandLineArguments (bool weWereStartedFromTheCommandLine,
 			MelderInfo_writeLine (U"The switch --run is not compatible with running a stand-alone script.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (praatP.foundTheOpenSwitch) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"The switch --open (or --new-open) is not compatible with running a stand-alone script.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (praatP.foundTheSendSwitch) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"The switch --send (or --new-send) is not compatible with running a stand-alone script.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (praatP.foundTheSendOrFormSwitch) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"The switch --send-or-form (or --new-send-or-form) is not compatible with running a stand-alone script.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (thereIsAFileNameInTheArgumentList) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"Having a file name is not compatible with running a stand-alone script.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		Melder_assert (! praatP.userWantsToOpen);
 		Melder_assert (! praatP.userWantsExistingInstance);
@@ -1709,35 +1724,35 @@ static void interpretCommandLineArguments (bool weWereStartedFromTheCommandLine,
 			MelderInfo_writeLine (U"The switch --run is not compatible with running Praat interactively from the command line.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (praatP.foundTheOpenSwitch) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"The switch --open (or --new-open) is not compatible with running Praat interactively from the command line.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (praatP.foundTheSendSwitch) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"The switch --send (or --new-send) is not compatible with running Praat interactively from the command line.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (praatP.foundTheSendOrFormSwitch) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"The switch --send-form (or --new-send-form) is not compatible with running Praat interactively from the command line.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		if (thereIsAFileNameInTheArgumentList) {
 			MelderInfo_open ();
 			MelderInfo_writeLine (U"Having a file name is not compatible with running Praat interactively from the command line.", U"\n");
 			printHelp ();
 			MelderInfo_close ();
-			exit (-1);
+			PLADDRR_EXIT (-1);
 		}
 		Melder_assert (! praatP.userWantsToOpen);
 		Melder_assert (! praatP.userWantsExistingInstance);
@@ -1872,7 +1887,7 @@ void praat_init (conststring32 title,
 		if (! Melder_batch) {
 			fprintf (Melder_stderr, "A no-GUI edition of Praat cannot be used interactively. "
 					"Supply \"--run\" and a script file name on the command line.\n");
-			exit (1);
+			PLADDRR_EXIT (1);
 		}
 	#endif
 
@@ -1886,7 +1901,7 @@ void praat_init (conststring32 title,
 	#endif
 	if (praatP.userWantsExistingInstance)
 		if (tryToSwitchToRunningPraat (praatP.userWantsToOpen, praatP.userWantsToSend, praatP.userWantsToSendOrForm))
-			exit (0);
+			PLADDRR_EXIT (0);
 
 	#ifdef UNIX
 		if (! Melder_batch) {
