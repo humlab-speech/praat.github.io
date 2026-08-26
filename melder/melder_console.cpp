@@ -24,7 +24,8 @@
 	#include <assert.h>
 #endif
 #if defined (PRAAT_LIB)
-	#include <Rinterface.h>   // pladdrr: R_Outputfile / R_Consolefile
+	#include <R_ext/Print.h>   // pladdrr: Rprintf / REprintf (API)
+	#include <thread>   // pladdrr: main-thread gating
 #endif
 
 /*
@@ -122,38 +123,46 @@ void MelderConsole_init () {
 			}
 		};
 	#endif
+	#if ! defined (PRAAT_LIB)
 	if (! Melder_stdout)
-		#if defined (PRAAT_LIB)
-			// pladdrr: embedded in R — route console output through R's own
-			// streams (CRAN forbids referencing the libc stdout/stderr symbols).
-			Melder_stdout = R_Outputfile;
-		#else
-			Melder_stdout = stdout;
-		#endif
+		Melder_stdout = stdout;
 	if (! Melder_stderr)
-		#if defined (PRAAT_LIB)
-			Melder_stderr = R_Consolefile;   // may be NULL in batch mode
-		#else
-			Melder_stderr = stderr;
-		#endif
+		Melder_stderr = stderr;
+	#endif
 }
 
 void MelderConsole::write (conststring32 message, bool useStderr) {
 	if (! message)
 		return;
+#if defined (PRAAT_LIB)
+	// pladdrr: R's console API (Rprintf/REprintf) is only safe on the main
+	// thread. Record the first writer — the R main thread at package load — and
+	// drop messages from worker threads instead of calling R internals
+	// off-main-thread (Melder_casual can fire inside Praat's threaded frame
+	// loops, e.g. Sound_to_Pitch.cpp). R_Outputfile/R_Consolefile were
+	// considered but R CMD check flags them as non-API entry points.
+	static std::thread::id theConsoleThread;
+	static std::once_flag theConsoleThreadInitialized;
+	std::call_once (theConsoleThreadInitialized, [] () {
+		theConsoleThread = std::this_thread::get_id ();
+	});
+	if (std::this_thread::get_id () != theConsoleThread)
+		return;
+	static std::mutex theConsoleMutex;
+	std::lock_guard<std::mutex> lock (theConsoleMutex);
+	if (useStderr)
+		REprintf ("%s", Melder_peek32to8 (message));
+	else
+		Rprintf ("%s", Melder_peek32to8 (message));
+	return;
+#endif
 	FILE *f = useStderr ? Melder_stderr : Melder_stdout;
 	// pladdrr: in the embedded (no-GUI) context the lazy init that assigns these
 	// globals may never run, leaving f == nullptr; a casual message from a
 	// (possibly worker-thread) DSP routine then hits fputc(NULL) -> flockfile(0x68)
-	// segfault. Fall back to R's console streams (CRAN forbids the libc streams).
+	// segfault. Fall back to the real libc streams. See PRAAT_MODIFICATIONS.md.
 	if (! f)
-		#if defined (PRAAT_LIB)
-			f = useStderr ? R_Consolefile : R_Outputfile;
-		#else
-			f = useStderr ? stderr : stdout;
-		#endif
-	if (! f)
-		return;   // pladdrr: R_Consolefile can be NULL in batch mode — drop the message
+		f = useStderr ? stderr : stdout;
 	if (! f)
 		return;
 	if (MelderConsole :: encoding == Encoding::UTF16) {
